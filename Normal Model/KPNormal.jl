@@ -212,6 +212,9 @@ function rand_alg(cs, xs, ys, taus, numDraws=length(xs)^2)
 	qalg 
 end
 
+###### Testing Code ####
+# VG think about moving this to a standalone file
+# Collapse these tests into a single harness with a set-up protocol type
 
 ####
 #For increasing n, many simulations compare
@@ -314,6 +317,7 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
 
+
 			#rescaling the sample_split method
 			tau_RS = vals[indmax(objs)]/2
 			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
@@ -342,6 +346,124 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 	end
 	close(f)
 end
+
+####
+# costs are same for every item,
+# odd numbered items have lower theta, but high tau
+# even numbered items have theta = 1, taus = 1 
+function test2(file_out, numRuns, n_grid, seed, low_theta, high_tau)
+	srand(seed)
+
+	#output files
+	f = open("$(file_out)_$(low_theta)_$(high_tau)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+
+	n_max = maximum(n_grid)
+	cs = 10 * ones(Float64, n_max)  #10% of items fit
+	taus = ones(Float64, n_max)
+	taus[1:2:n_max] = high_tau
+	sigs = 1./sqrt(taus)
+	thetas = ones(Float64, n_max)
+	thetas[1:2:n_max] = low_theta
+
+	#pre-allocate space for efficiency
+	zs = zeros(Float64, n_max)
+	xs = zeros(Float64, n_max)
+	ys = zeros(Float64, n_max)
+	noise = zeros(Float64, n_max)
+	for iRun = 1:numRuns
+		#generate the entire path
+		zs[:] = randn!(zs) .* sigs + thetas
+		noise[:] = randn!(noise) .* sigs
+		xs[:] = zs + noise
+		ys[:] = zs - noise 
+
+		for n in n_grid
+			#Compute performance of each method
+			#Naive x
+			tic()
+			qs = q(cs[1:n], xs[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "NaiveX" yval thetaval t 0.])
+
+			#Naive Z
+			tic()
+			qs = q(cs[1:n], zs[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "NaiveZ" yval thetaval t 0.])
+
+			#fullInfo val
+			tic()
+			qs = q(cs[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "FullInfo" yval thetaval t 0.])
+
+			#Tau MLE
+			tic()
+			tauMLE, qs = q_MLE(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MLE" yval thetaval t tauMLE])
+
+			#Tau MM
+			tic()
+			tauMM, qs = q_MM(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MM" yval thetaval t tauMM])
+
+			#Our sample split method x
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], ys[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
+
+
+			#rescaling the sample_split method
+			tau_RS = vals[indmax(objs)]/2
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
+
+			#Oracle X method
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "OracleX" yval thetaval t vals[indmax(objs)]])
+
+			#Oracle Z method
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], zs[1:n], taus[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
+
+		end
+		flush(f)
+	end
+	close(f)
+end
+
+
+
+
+
+
+
 
 
 # #### Deprecated ######
