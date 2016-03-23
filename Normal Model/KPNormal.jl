@@ -1,9 +1,10 @@
 module KP
 using Distributions
+using Roots
 
 shrink(Xs, taus, tau0) = (taus ./ (taus + tau0)) .* Xs
 
-#Scales costs by $n$ internally
+#Scales costs by n internally
 function q(cs, rs)
     const n = length(rs)
     ratios = rs ./ cs
@@ -41,7 +42,7 @@ function sbars(xs, cs, taus, f_indx)
 end
 
 #min_indx above the threshold
-#returns -1 if there are no values below thresh
+#returns -1 if there are no values above thresh
 function indmin_thresh(vals, thresh)
 	const n = length(vals)
 	min_indx = -1
@@ -56,13 +57,12 @@ function indmin_thresh(vals, thresh)
 end
 
 ## searches over bfs to figure out the best value of tau0
-#be sure to call wtith costs and xs/ n
 function best_q_tau(cs, xs, taus, ys)
 	const TOL = 1e-8
 	const n = length(xs)
 	ratios = xs ./ cs
 	indx = sortperm(ratios, rev=true)
-	cs = cs/n
+	cs = cs/n  #makes a copy
 
 	vals = Float64[]
 	objs = Float64[]
@@ -77,7 +77,7 @@ function best_q_tau(cs, xs, taus, ys)
     		continue
     	end
 
-        #check if next item fits and it has positive value
+        #check if next item fits entirely
         if total_weight + cs[indx[ix]] <= 1
             qs[indx[ix]] = 1.
             total_weight += cs[indx[ix]]
@@ -92,13 +92,13 @@ function best_q_tau(cs, xs, taus, ys)
 
     ##check for a trivial solution
     if frac_indx == -1 || total_weight < 1
-    	println("Trivial Problem Set-up")
-    	println("Frac_index: \t $frac_indx")
-    	println("toatl_weight:\t $total_weight")
+    	println("Trivial Problem Set-up:  All items fit.")
+    	println("total_weight:\t $total_weight")
     	println("qs:\n", qs)
     	return qs, [0.], [dot(qs, ys)/n]
     end
 
+    #Now search across all possible tau0, constructing grid as you go
 	tau0 = 0.  #always represents current value
     svals = sbars(xs, cs, taus, frac_indx)
     max_obj = -1
@@ -107,9 +107,9 @@ function best_q_tau(cs, xs, taus, ys)
    	iter = 0
     while tau0 > -1.
     	iter += 1
-    	@assert iter < 1e7 "WTF"
-  #   	println("Tau0: $tau0")
-  #   	println("qs:\n", qs)
+    	@assert iter < 1e7 "Max iterations exceeded"
+    	# println("Tau0: $tau0")
+    	# println("qs:\n", qs)
 		# println("Svals:\n", svals)
 		# println("Frac_Indx:\t $frac_indx")
 
@@ -117,12 +117,11 @@ function best_q_tau(cs, xs, taus, ys)
 	    #assess solution and record value
 	    obj = dot(ys, qs)/n
 		push!(objs, obj)
+    	push!(vals, tau0)
     	if obj > max_obj
     		max_obj = obj
     		max_tau0 = tau0
     	end    
-    	
-    	push!(vals, tau0)
 
     	##Find the entering indx if it exists
     	indx_p = indmin_thresh(svals, tau0)
@@ -170,46 +169,30 @@ function best_q_tau(cs, xs, taus, ys)
 			end
 		end
     end
+
     ##assume that solving one last time is short relative to costs
     ##have to unscale cs for this to work
     max_qs = KP.q(cs * n, shrink(xs, taus, max_tau0))
-    println("max tau0: \t $max_tau0")
     return max_qs, vals, objs 
 end
 
-# compute the distribution of rewards for various taus
-function perf_taus(thetas, taus, cs, numSims, tau0_grid)
-	const n = length(thetas)
-	out = zeros(Float64, numSims, length(tau0_grid))
-	for iSim = 1:numSims
-		Xs = randn(n) ./ sqrt(taus) + thetas
-		for (ix, t) in enumerate(tau0_grid)
-			rs = shrink(Xs, taus, t)
-			out[iSim, ix] = dot(q(cs, rs), thetas) / n
-		end
-	end
-	out
+#Compute the method of moment estimator
+function q_MM(cs, zs, taus)
+	tau_mm = 1/mean(zs.^2 - 1./taus)
+	tau_mm = max(0, tau_mm)
+	tau_mm, q(cs, shrink(zs, taus, tau_mm))
+end
+
+function q_MLE(cs, zs, taus, max_bnd = 1e2)
+	#solve the MLE using a rootfinder solver for the variance and then invert
+	vs = 1./ taus
+	deriv_loglik(v) = mean(zs.^2 ./ (v + vs).^2 - 1./(v + vs))
+	v0 = fzero(deriv_loglik, 0, max_bnd)
+	@assert v0 < max_bnd "max_bnd $(max_bnd) was insufficient"
+	1/v0, q(cs, shrink(zs, taus, 1/v0))
 end
 
 ideal_val(thetas, cs) = dot(q(cs, thetas), thetas) /length(thetas)
-
-function q_linreg(cs, rs, ts)
-	a, b = linreg(rs, ts) 
-	rhat = a + b*rs
-	q(cs, rhat)
-end
-
-function perf_reg(thetas, cs, numSims)
-	const n = length(thetas)
-	out = zeros(Float64, n, 3)
-	for iSim = 1:numSims
-		Xs = randn(n) ./ sqrt(taus) + thetas
-		Ys = randn(n) ./ sqrt(taus) + thetas
-		q = q_linreg(cs, Xs, Ys)
-		out[iSim, 1] = dot(q, thetas) / n
-	end
-	out
-end
 
 ## returns the best of n^2 draws
 function rand_alg(cs, xs, ys, taus, numDraws=length(xs)^2)
@@ -228,6 +211,7 @@ function rand_alg(cs, xs, ys, taus, numDraws=length(xs)^2)
 	end 
 	qalg 
 end
+
 
 ####
 #For increasing n, many simulations compare
@@ -267,9 +251,10 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 	for iRun = 1:numRuns
 		#generate the entire path
 		thetas[:] = randn!(thetas) / sqrt(tau0)
-		xs[:] = randn!(xs) .* sigs + thetas
-		ys[:] = randn!(ys) .* sigs + thetas
-		zs[:] = .5 * (xs + ys)
+		zs[:] = randn!(zs) .* sigs + thetas
+		noise[:] = randn!(noise) .* sigs
+		xs[:] = zs + noise
+		ys[:] = zs - noise 
 
 		for n in n_grid
 			#Compute performance of each method
@@ -297,7 +282,31 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "FullInfo" yval thetaval t 0.])
 
-			#Our method x
+			#The "Bayes" value.. only possible bc we know the setup is bayesian
+			tic()
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau0))
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Bayes" yval thetaval t tau0])
+
+			#Tau MLE
+			tic()
+			tauMLE, qs = q_MLE(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MLE" yval thetaval t tauMLE])
+
+			#Tau MM
+			tic()
+			tauMM, qs = q_MM(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MM" yval thetaval t tauMM])
+
+			#Our sample split method x
 			tic()
 			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], ys[1:n])
 			t = toc()
@@ -305,13 +314,12 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
 
-			#Our method x+y
-			tic()
-			qsy, vals, objs = best_q_tau(cs[1:n], ys[1:n], taus[1:n], xs[1:n])
-			t = toc()
-			qs_avg = .5*(qs + qsy)
-			thetaval = dot(thetas[1:n], qs_avg)/n
-			writecsv(f, [iRun n "EmpBayesAvg" 0. thetaval 2*t vals[indmax(objs)]])
+			#rescaling the sample_split method
+			tau_RS = vals[indmax(objs)]/2
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
 
 			#Oracle X method
 			tic()
@@ -329,29 +337,6 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
 
-			# ##Randomization run
-			# yvalmax = -Inf
-			# max_qs = Float64[]
-			# t = 0.
-			# tic()
-			# for iRand = 1:n^6
-			# 	if iRand == n^2 || iRand == n^4 ||iRand == n^6
-			# 		t += toc()
-			# 		k = floor(Integer, log(n, iRand))
-			# 		thetaval = dot(thetas[1:n], qs)/n
-			# 		writecsv(f, [iRun n "Random_$(k)" yvalmax thetaval t 0.])
-			# 		tic()
-			# 	end
-
-			# 	noise[1:n] = randn!(noise[1:n]) .* sigs[1:n] + xs[1:n]
-			# 	qs = q(cs[1:n], noise[1:n])	
-			# 	yval = dot(ys[1:n], qs)/n
-			# 	if yval > yvalmax
-			# 		yvalmax = yval
-			# 		max_qs = qs
-			# 	end
-			# end
-
 		end
 		flush(f)
 	end
@@ -360,6 +345,20 @@ end
 
 
 # #### Deprecated ######
+# # compute the distribution of rewards for various taus
+# function perf_taus(thetas, taus, cs, numSims, tau0_grid)
+# 	const n = length(thetas)
+# 	out = zeros(Float64, numSims, length(tau0_grid))
+# 	for iSim = 1:numSims
+# 		Xs = randn(n) ./ sqrt(taus) + thetas
+# 		for (ix, t) in enumerate(tau0_grid)
+# 			rs = shrink(Xs, taus, t)
+# 			out[iSim, ix] = dot(q(cs, rs), thetas) / n
+# 		end
+# 	end
+# 	out
+# end
+
 # ##Used to assess ULLN
 
 # #Computes the set of taus where non-ngative xs cross.  
@@ -412,6 +411,25 @@ end
 # 	j = indmax(diffs)
 # 	qi_obj[j], qbar_obj[j], s_grid[j], s_grid[j+1] -s_grid[j]
 # end
+
+function q_linreg(cs, rs, ts)
+	a, b = linreg(rs, ts) 
+	rhat = a + b*rs
+	q(cs, rhat)
+end
+
+function perf_reg(thetas, cs, numSims)
+	const n = length(thetas)
+	out = zeros(Float64, n, 3)
+	for iSim = 1:numSims
+		Xs = randn(n) ./ sqrt(taus) + thetas
+		Ys = randn(n) ./ sqrt(taus) + thetas
+		q = q_linreg(cs, Xs, Ys)
+		out[iSim, 1] = dot(q, thetas) / n
+	end
+	out
+end
+
 
 
 end #ends module
