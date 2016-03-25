@@ -494,14 +494,12 @@ function test3(file_out, numRuns, n_grid, seed, tau0, tau_scale_grid)
 	writecsv(f, ["Run" "n" "Scale" "YVal" "thetaVal" "time" "tau0"])
 
 	n_max = maximum(n_grid)
-	cs = 10 * ones(Float64, n_max)  #10% of items fit
-	taus = ones(Float64, n_max)
-	taus[1:2:n_max] = low_tau
+	cs = rand(n_max) * 20   #about 10% of items fit
+	taus = 8. * rand(n_max)
 	sigs = 1./sqrt(taus)
-	thetas = ones(Float64, n_max)
-	thetas[1:2:n_max] = low_theta
 
 	#pre-allocate space for efficiency
+	thetas = zeros(Float64, n_max)
 	zs = zeros(Float64, n_max)
 	xs = zeros(Float64, n_max)
 	ys = zeros(Float64, n_max)
@@ -539,7 +537,7 @@ end
 ####
 # costs are same for every item,
 # computed at different scalings
-function test4(file_out, numRuns, n_grid, seed, tau0, tau_scale_grid)
+function test4(file_out, numRuns, n_grid, seed, low_theta, low_tau, tau_scale_grid)
 	srand(seed)
 
 	#output files
@@ -585,11 +583,6 @@ function test4(file_out, numRuns, n_grid, seed, tau0, tau_scale_grid)
 	end
 	close(f)
 end
-
-
-
-
-
 
 
 
