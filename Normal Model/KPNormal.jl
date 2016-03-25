@@ -483,6 +483,108 @@ function test2(file_out, numRuns, n_grid, seed, low_theta, low_tau)
 	close(f)
 end
 
+####
+# costs are same for every item,
+# computed at different scalings
+function test3(file_out, numRuns, n_grid, seed, tau0, tau_scale_grid)
+	srand(seed)
+
+	#output files
+	f = open("$(file_out)_tau_scale_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Scale" "YVal" "thetaVal" "time" "tau0"])
+
+	n_max = maximum(n_grid)
+	cs = 10 * ones(Float64, n_max)  #10% of items fit
+	taus = ones(Float64, n_max)
+	taus[1:2:n_max] = low_tau
+	sigs = 1./sqrt(taus)
+	thetas = ones(Float64, n_max)
+	thetas[1:2:n_max] = low_theta
+
+	#pre-allocate space for efficiency
+	zs = zeros(Float64, n_max)
+	xs = zeros(Float64, n_max)
+	ys = zeros(Float64, n_max)
+	noise = zeros(Float64, n_max)
+	for iRun = 1:numRuns
+		#generate the entire path
+		thetas[:] = randn!(thetas) / sqrt(tau0)
+		zs[:] = randn!(zs) .* sigs + thetas
+		noise[:] = randn!(noise) .* sigs
+		xs[:] = zs + noise
+		ys[:] = zs - noise 
+
+		for n in n_grid
+			#Compute performance of each method
+			#Our sample split method x
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], ys[1:n])
+			t = toc()
+			tau_hat = vals[indmax(objs)]
+
+			for scale in tau_scale_grid
+				qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_hat*scale))
+				yval = dot(ys[1:n], qs)/n
+				thetaval = dot(thetas[1:n], qs)/n
+				writecsv(f, [iRun n scale yval thetaval t vals[indmax(objs)]])
+			end
+		end
+		flush(f)
+	end
+	close(f)
+end
+
+
+
+####
+# costs are same for every item,
+# computed at different scalings
+function test4(file_out, numRuns, n_grid, seed, tau0, tau_scale_grid)
+	srand(seed)
+
+	#output files
+	f = open("$(file_out)_tau_scale_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Scale" "YVal" "thetaVal" "time" "tau0"])
+
+	n_max = maximum(n_grid)
+	cs = 10 * ones(Float64, n_max)  #10% of items fit
+	taus = ones(Float64, n_max)
+	taus[1:2:n_max] = low_tau
+	sigs = 1./sqrt(taus)
+	thetas = ones(Float64, n_max)
+	thetas[1:2:n_max] = low_theta
+
+	#pre-allocate space for efficiency
+	zs = zeros(Float64, n_max)
+	xs = zeros(Float64, n_max)
+	ys = zeros(Float64, n_max)
+	noise = zeros(Float64, n_max)
+	for iRun = 1:numRuns
+		#generate the entire path
+		zs[:] = randn!(zs) .* sigs + thetas
+		noise[:] = randn!(noise) .* sigs
+		xs[:] = zs + noise
+		ys[:] = zs - noise 
+
+		for n in n_grid
+			#Compute performance of each method
+			#Our sample split method x
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], ys[1:n])
+			t = toc()
+			tau_hat = vals[indmax(objs)]
+
+			for scale in tau_scale_grid
+				qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_hat*scale))
+				yval = dot(ys[1:n], qs)/n
+				thetaval = dot(thetas[1:n], qs)/n
+				writecsv(f, [iRun n scale yval thetaval t vals[indmax(objs)]])
+			end
+		end
+		flush(f)
+	end
+	close(f)
+end
 
 
 
