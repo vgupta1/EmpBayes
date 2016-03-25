@@ -325,6 +325,31 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
 
+			#rescaling by a wrong factor
+			taus_RS = vals[indmax(objs)]/2
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Rescaled_1" yval thetaval t tau_RS])
+
+			#rescaling by a wrong factor
+			taus_RS = vals[indmax(objs)]/4
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Rescaled_4" yval thetaval t tau_RS])
+
+
+			#The ZZ method
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], zs[1:n], taus[1:n], zs[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ZZ" yval thetaval t vals[indmax(objs)]])
+
+
+
 			#Oracle X method
 			tic()
 			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], thetas[1:n])
@@ -349,19 +374,19 @@ end
 
 ####
 # costs are same for every item,
-# odd numbered items have lower theta, but high tau
+# odd numbered items have lower theta, but low tau
 # even numbered items have theta = 1, taus = 1 
-function test2(file_out, numRuns, n_grid, seed, low_theta, high_tau)
+function test2(file_out, numRuns, n_grid, seed, low_theta, low_tau)
 	srand(seed)
 
 	#output files
-	f = open("$(file_out)_$(low_theta)_$(high_tau)_$(seed).csv", "w")
+	f = open("$(file_out)_$(low_theta)_$(low_tau)_$(seed).csv", "w")
 	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 
 	n_max = maximum(n_grid)
 	cs = 10 * ones(Float64, n_max)  #10% of items fit
 	taus = ones(Float64, n_max)
-	taus[1:2:n_max] = high_tau
+	taus[1:2:n_max] = low_tau
 	sigs = 1./sqrt(taus)
 	thetas = ones(Float64, n_max)
 	thetas[1:2:n_max] = low_theta
