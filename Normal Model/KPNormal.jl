@@ -317,7 +317,6 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
 
-
 			#rescaling the sample_split method
 			tau_RS = vals[indmax(objs)]/2
 			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
@@ -339,7 +338,6 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Rescaled_4" yval thetaval t tau_RS])
 
-
 			#The ZZ method
 			tic()
 			qs, vals, objs = best_q_tau(cs[1:n], zs[1:n], taus[1:n], zs[1:n])
@@ -347,8 +345,6 @@ function test1(file_out, numRuns, n_grid, seed, tau0)
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(thetas[1:n], qs)/n
 			writecsv(f, [iRun n "ZZ" yval thetaval t vals[indmax(objs)]])
-
-
 
 			#Oracle X method
 			tic()
@@ -583,6 +579,119 @@ function test4(file_out, numRuns, n_grid, seed, low_theta, low_tau, tau_scale_gr
 	end
 	close(f)
 end
+
+####
+# costs are random uniform
+# True generating model is random Exponential
+# Testing to see how scale/2 performs
+function test5(file_out, numRuns, n_grid, seed, alpha, beta)
+	srand(seed)
+
+	#output files
+	f = open("$(file_out)_Exp_$(alpha)_$(beta)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+
+	n_max = maximum(n_grid)
+	cs = 20 * rand(Float64, n_max)  #10% of items fit
+
+	##draw thetas from a gamma(alpha, beta)
+	thetas = rand(Gamma(alpha, beta), n_max)
+	taus = thetas.^2
+	sigs = 1./thetas
+
+	#pre-allocate space for efficiency
+	zs = zeros(Float64, n_max)
+	xs = zeros(Float64, n_max)
+	ys = zeros(Float64, n_max)
+	noise = zeros(Float64, n_max)
+	for iRun = 1:numRuns
+		#Generate the entire path
+		for j = 1:n_max
+			zs[j] = rand(Exponential(thetas[j]))
+		end
+		noise[:] = randn!(noise) .* sigs
+		xs[:] = zs + noise
+		ys[:] = zs - noise 
+
+		for n in n_grid
+			#Compute performance of each method
+			#Naive Z
+			tic()
+			qs = q(cs[1:n], zs[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "NaiveZ" yval thetaval t 0.])
+
+			#fullInfo val
+			tic()
+			qs = q(cs[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "FullInfo" yval thetaval t 0.])
+
+			#VG Correct this to the exponential version
+			# #The "Bayes" value.. only possible bc we know the setup is bayesian
+			# tic()
+			# qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau0))
+			# t = toc()
+			# yval = dot(ys[1:n], qs)/n
+			# thetaval = dot(thetas[1:n], qs)/n
+			# writecsv(f, [iRun n "Bayes" yval thetaval t tau0])
+
+			#Tau MLE
+			tic()
+			tauMLE, qs = q_MLE(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MLE" yval thetaval t tauMLE])
+
+			#Tau MM
+			tic()
+			tauMM, qs = q_MM(cs[1:n], zs[1:n], taus[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "MM" yval thetaval t tauMM])
+
+			#Our sample split method x
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], ys[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
+
+			#rescaling the sample_split method
+			tau_RS = vals[indmax(objs)]/2
+			qs = q(cs[1:n], shrink(zs[1:n], taus[1:n], tau_RS))
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
+
+			#Oracle X method
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], xs[1:n], taus[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "OracleX" yval thetaval t vals[indmax(objs)]])
+
+			#Oracle Z method
+			tic()
+			qs, vals, objs = best_q_tau(cs[1:n], zs[1:n], taus[1:n], thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(thetas[1:n], qs)/n
+			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
+		end
+		flush(f)
+	end
+	close(f)
+end
+
 
 
 
