@@ -541,7 +541,7 @@ function test4(file_out, numRuns, n_grid, seed, low_theta, low_tau, tau_scale_gr
 	srand(seed)
 
 	#output files
-	f = open("$(file_out)_tau_scale_$(seed).csv", "w")
+	f = open("$(file_out)_tau_scale_$(low_theta)_$(low_tau)_$(seed).csv", "w")
 	writecsv(f, ["Run" "n" "Scale" "YVal" "thetaVal" "time" "tau0"])
 
 	n_max = maximum(n_grid)
