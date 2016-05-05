@@ -8,13 +8,18 @@ dat = read.csv("results_10_8675309.csv")
 dat = read.csv("test2_results_0.5_0.2_8675309.csv")
 dat = read.csv("test2_results_0.5_3_8675309.csv")
 dat = read.csv("test1_resultsb_1_8675309.csv")
+dat = read.csv("exp_results_Exp_1_1_8675309.csv")
+
+##redone with new harness
+
+
 
 
 ##top level summary
 dat %>% group_by(n, Method) %>%
   summarise(avg=mean(thetaVal))
 
-filter(dat, n>65000) %>%
+filter(dat, n>65000, Method != "FullInfo") %>%
   group_by(Method) %>%
   summarise(avg=mean(thetaVal), 
             low=quantile(thetaVal,.05), 
@@ -27,7 +32,7 @@ filter(dat, n>65000) %>%
 #progression in n
 pos = position_dodge(.2)
 dat %>% filter(n>1e3) %>%
-  filter(! Method %in% c("FullInfo", "EmpBayesX", "OracleX", "NaiveX")) %>%
+  filter(! Method %in% c("FullInfo")) %>%
 #  filter(Method %in% c(""NaiveZ", "MLE","MM", "OracleZ", "Rescaled")) %>%
   group_by(n, Method) %>%
   summarise(avg=mean(thetaVal), 
