@@ -2,21 +2,23 @@ module KP
 using Distributions
 using Roots
 
-export q, best_q_tau, q_MM, q_MLE, ideal_val
+export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam
 
 #some possibly useful helpers?
 export shrink
 
-shrink(Xs, taus, tau0) = (taus ./ (taus + tau0)) .* Xs
+shrink(Xs, vs, tau0) = (vs ./ (vs + tau0)) .* Xs
 
 #Scales costs by n internally
-function q(cs, rs)
+#The dual return fails if the particular run is degenerate.  
+function q_dual(cs, rs)
     const n = length(rs)
     ratios = rs ./ cs
     cs = cs/n #makes a copy
     indx = sortperm(ratios, rev=true)
     out = zeros(Float64, length(indx))
     weight = 0.
+    dual = -1
     for ix = 1:length(indx)
     	#check if the item has positive value, else skip
     	if rs[indx[ix]] <=0. 
@@ -30,18 +32,30 @@ function q(cs, rs)
         else
             #take fractional part
             out[[indx[ix]]] = (1-weight)/cs[indx[ix]]
+            dual = ratios[indx[ix]]
             break
         end
     end
-    out
+    out, dual
+end
+
+q(cs, rs) = q_dual(cs, rs)[1]
+function lam(zs, tau, vs, cs)
+    rs = shrink(zs, vs, tau)
+    q_dual(cs, rs)[2]
+end
+
+function dual_obj(zs, tau, vs, cs)
+    l = lam(zs, tau, vs, cs)
+    l + mean(max(0, shrink(zs, vs, tau) .- l * cs))    
 end
 
 #used to in computing the entire tau-grid
-function sbars(xs, cs, taus, f_indx)
+function sbars(xs, cs, vs, f_indx)
     out = zeros(Float64, length(xs))
     for i = 1:length(out)
-        out[i] = taus[i]*taus[f_indx] * (cs[i]*xs[f_indx] - cs[f_indx]*xs[i])
-        out[i] /= cs[f_indx]*taus[i]*xs[i] - cs[i]*taus[f_indx]*xs[f_indx]
+        out[i] = vs[i]*vs[f_indx] * (cs[i]*xs[f_indx] - cs[f_indx]*xs[i])
+        out[i] /= cs[f_indx]*vs[i]*xs[i] - cs[i]*vs[f_indx]*xs[f_indx]
     end   
     out
 end
@@ -62,7 +76,7 @@ function indmin_thresh(vals, thresh)
 end
 
 ## searches over bfs to figure out the best value of tau0
-function best_q_tau(cs, xs, taus, ys)
+function best_q_tau(cs, xs, vs, ys)
 	const TOL = 1e-8
 	const n = length(xs)
 	ratios = xs ./ cs
@@ -105,7 +119,7 @@ function best_q_tau(cs, xs, taus, ys)
 
     #Now search across all possible tau0, constructing grid as you go
 	tau0 = 0.  #always represents current value
-    svals = sbars(xs, cs, taus, frac_indx)
+    svals = sbars(xs, cs, vs, frac_indx)
     max_obj = -1
     max_tau0 = 0.
 
@@ -113,11 +127,6 @@ function best_q_tau(cs, xs, taus, ys)
     while tau0 > -1.
     	iter += 1
     	@assert iter < 1e7 "Max iterations exceeded"
-    	# println("Tau0: $tau0")
-    	# println("qs:\n", qs)
-		# println("Svals:\n", svals)
-		# println("Frac_Indx:\t $frac_indx")
-
 
 	    #assess solution and record value
 	    obj = dot(ys, qs)/n
@@ -153,7 +162,7 @@ function best_q_tau(cs, xs, taus, ys)
     			qs[frac_indx] = 1
     			tau0 = svals[indx_p]
     			frac_indx = indx_p
-    			svals = sbars(xs, cs, taus, frac_indx)			
+    			svals = sbars(xs, cs, vs, frac_indx)			
     		end
     	else  #qs[indx_p] == 0
 	    	frac_weight = qs[frac_indx] * cs[frac_indx]
@@ -170,40 +179,40 @@ function best_q_tau(cs, xs, taus, ys)
 				qs[frac_indx] = 0.
 				tau0 = svals[indx_p]	
 				frac_indx = indx_p
-				svals = sbars(xs, cs, taus, frac_indx)
+				svals = sbars(xs, cs, vs, frac_indx)
 			end
 		end
     end
 
     ##assume that solving one last time is short relative to costs
     ##have to unscale cs for this to work
-    max_qs = KP.q(cs * n, shrink(xs, taus, max_tau0))
+    max_qs = KP.q(cs * n, shrink(xs, vs, max_tau0))
     return max_qs, vals, objs 
 end
 
 #Compute the method of moment estimator
-function q_MM(cs, zs, taus)
-	tau_mm = 1/mean(zs.^2 - 1./taus)
+function q_MM(cs, zs, vs)
+	tau_mm = 1/mean(zs.^2 - 1./vs)
 	tau_mm = max(0, tau_mm)
-	tau_mm, q(cs, shrink(zs, taus, tau_mm))
+	tau_mm, q(cs, shrink(zs, vs, tau_mm))
 end
 
-function q_MLE(cs, zs, taus, max_bnd = 1e2)
+function q_MLE(cs, zs, vs, max_bnd = 1e2)
 	#solve the MLE using a rootfinder solver for the variance and then invert
-	vs = 1./ taus
+	vs = 1./ vs
 	deriv_loglik(v) = mean(zs.^2 ./ (v + vs).^2 - 1./(v + vs))
 	v0 = fzero(deriv_loglik, 0, max_bnd)
 	@assert v0 < max_bnd "max_bnd $(max_bnd) was insufficient"
-	1/v0, q(cs, shrink(zs, taus, 1/v0))
+	1/v0, q(cs, shrink(zs, vs, 1/v0))
 end
 
 ideal_val(thetas, cs) = dot(q(cs, thetas), thetas) /length(thetas)
 
 ## returns the best of n^2 draws
-function rand_alg(cs, xs, ys, taus, numDraws=length(xs)^2)
+function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
 	const n = length(xs)
 	qalg = zeros(Float64, n)
-	sigs = 1./sqrt(taus)
+	sigs = 1./sqrt(vs)
 	max_val = 0.
 
 	for i=1:numDraws
@@ -228,8 +237,8 @@ function perf_reg(thetas, cs, numSims)
 	const n = length(thetas)
 	out = zeros(Float64, n, 3)
 	for iSim = 1:numSims
-		Xs = randn(n) ./ sqrt(taus) + thetas
-		Ys = randn(n) ./ sqrt(taus) + thetas
+		Xs = randn(n) ./ sqrt(vs) + thetas
+		Ys = randn(n) ./ sqrt(vs) + thetas
 		q = q_linreg(cs, Xs, Ys)
 		out[iSim, 1] = dot(q, thetas) / n
 	end
