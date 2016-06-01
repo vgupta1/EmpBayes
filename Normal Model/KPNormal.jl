@@ -197,13 +197,25 @@ function q_MM(cs, zs, vs)
 	tau_mm, q(cs, shrink(zs, vs, tau_mm))
 end
 
+
+##The MLE doesn't always solve properly
+##Instead of throwing, just return a -1 and the qs corresponding to tau0 = 0
 function q_MLE(cs, zs, vs, max_bnd = 1e2)
 	#solve the MLE using a rootfinder solver for the variance and then invert
 	vs = 1./ vs
 	deriv_loglik(v) = mean(zs.^2 ./ (v + vs).^2 - 1./(v + vs))
-	v0 = fzero(deriv_loglik, 0, max_bnd)
-	@assert v0 < max_bnd "max_bnd $(max_bnd) was insufficient"
-	1/v0, q(cs, shrink(zs, vs, 1/v0))
+
+    #Check the bracket
+    if deriv_loglik(0) * deriv_loglik(max_bnd) > 0
+        return -1, q(cs, zs)
+    else
+        v0 = fzero(deriv_loglik, 0, max_bnd)
+        #check if you ran up against a bound
+        if v0 >= max_bnd
+            return -1, q(cs, zs)
+        end
+    return 1/v0, q(cs, shrink(zs, vs, 1/v0))
+    end
 end
 
 ideal_val(thetas, cs) = dot(q(cs, thetas), thetas) /length(thetas)

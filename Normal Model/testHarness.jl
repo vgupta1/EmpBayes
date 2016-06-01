@@ -246,6 +246,7 @@ function test_harness(f, numRuns, o, n_grid)
 			writecsv(f, [iRun n "NaiveX" yval thetaval t 0.])
 
 			#Naive Z
+			#Same as the ZZ method
 			tic()
 			qs = q(o.cs[1:n], zs[1:n])
 			t = toc()
@@ -312,14 +313,6 @@ function test_harness(f, numRuns, o, n_grid)
 				writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
 			end
 
-			#The ZZ method
-			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], zs[1:n], o.taus[1:n], zs[1:n])
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ZZ" yval thetaval t vals[indmax(objs)]])
-
 			#Oracle X method
 			tic()
 			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.taus[1:n], o.thetas[1:n])
@@ -341,7 +334,7 @@ function test_harness(f, numRuns, o, n_grid)
 	end
 end
 
-n_grid = [2^i for i = 8:12]
+n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
 test_Gaussian("temp_Gaussian", 5, [100, 150], 87, 3)
