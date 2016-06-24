@@ -9,7 +9,6 @@ function radTests(file_out, numRuns, n_max, seed=8675309)
 	writecsv(f, ["Run" "n" "Diff" "tauOR"])
 	for iRun =1:numRuns
 		#simulate some data
-		n_max = 100000
 		thetas = rand(n_max)
 		thetas = sign(thetas - .5)
 		vs = rand(n_max) * 3
@@ -26,6 +25,7 @@ function radTests(file_out, numRuns, n_max, seed=8675309)
 
 		    writecsv(f, [iRun n diff tauOR])
 		end
+		flush(f)
 	end
 	close(f)
 end
