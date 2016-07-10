@@ -13,6 +13,9 @@ dat = read.csv("Results/testResults_Uniform_-3_3_8675309.csv")
 dat = read.csv("Results/testResults_Beta_0.5_0.5_8675309.csv")
 
 dat = read.csv("Results/test_gaussian_means_-3_2_8675309.csv")
+dat = read.csv("Results/test_gaussian_means_0_2_8675309.csv")
+dat = read.csv("temp_0_2_8675309.csv")
+
 
 #limit yourself to interesting metohds
 method_bad = c("MLE", "FullInfo", "NaiveZ", "NaiveX", "OracleX", "Rescaled", "Rescaled_2.0", "Rescaled_4.0")
@@ -64,6 +67,30 @@ dat %>%
                          "OracleX", "NaiveZ", "MM") ) %>%
   group_by(Method, n) %>%
   summarize(mean(tau0)) %>% dcast(n ~ Method) %>% select(n, OracleZ, Rescaled)  
+
+
+###################
+# Sanity Checks
+###################
+# Looking specifically at the gaussian case
+dat.small <- filter(dat, Method %in% c("OracleZ", "Bayes"))
+dat.small %>%
+  dcast(Run + n ~ Method, value.var = "thetaVal") %>%
+  group_by(n) %>% mutate(Diff=OracleZ - Bayes, err = Diff/Bayes) %>%
+  summarise( mindiff= min(Diff), 
+             maxdiff=max(Diff), 
+             indx = which(Diff == min(Diff)), 
+             maxerr = max(err))
+
+dat.small %>% filter(n == 512) %>%
+  dcast(Run ~ Method, value.var = "thetaVal") %>% 
+  ggplot(aes(x=Bayes, y=OracleZ), data=.) + geom_point()
+  
+##pick one place where things go wrong...
+dat.small %>% filter(n == 512) %>%
+
+
+
 
 
 

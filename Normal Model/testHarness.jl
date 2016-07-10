@@ -330,6 +330,13 @@ function test_harness(f, numRuns, o, n_grid)
 			@assert abs(thetaval - maximum(objs)) <= 1e-12 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
 
+			#Ridge Proxy
+			tic()
+			qs = q_ridge(cs, xs, ys, vs)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Ridge" yval thetaval t vals[indmax(objs)]])
 		end
 		flush(f)
 	end

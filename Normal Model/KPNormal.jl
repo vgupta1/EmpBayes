@@ -2,7 +2,7 @@ module KP
 using Distributions
 using Roots
 
-export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink
+export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink, q_ridge
 
 shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
 
@@ -123,6 +123,7 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     max_obj = -1
     max_tau0 = 0.
 
+    #At the beginining of every iteration qs is solution for tau0 + eps
    	iter = 0
     while tau0 > -1.
     	iter += 1
@@ -135,13 +136,6 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     	if obj > max_obj
     		max_obj = obj
     		max_tau0 = tau0
-
-            ##VG double-check the debug
-            qs_ = KP.q(cs_unscaled, shrink(xs, vs, tau0 + TOL))
-            if norm(qs - qs_)/n > 1e-10
-                println("WrongQ: \t $tau0 \t $(norm(qs - qs_)/n)")
-            end
-
     	end    
 
     	##Find the entering indx if it exists
@@ -193,13 +187,8 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
 
     ##assume that solving one last time is short relative to costs
     ##have to unscale cs for this to work
-#    println("Max Tau0: \t $max_tau0")
     max_qs = KP.q(cs_unscaled, shrink(xs, vs, max_tau0+TOL))
 
-    # ##VG Debugging
-    # max_objs_ = maximum(objs)
-    # max_objs_2 = dot(max_qs, ys)/n
-    # @assert abs(max_objs_ - max_objs_2)<= 1e-12 "Mismatch \t $max_objs_ \t $max_objs_2"    
     return max_qs, vals, objs 
 end
 
@@ -250,6 +239,34 @@ function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
 	qalg 
 end
 
+#a heuristic based on ridge regression
+function q_ridge(cs, xs, ys, vs; max_iter = 8)
+    #compute the tau that minimizes the out-of-sample l2
+    function deriv_f(tau0)
+        rs = shrink(xs, vs, tau0)
+        mean((ys - rs) .* rs./(vs + tau0))
+    end
+    #bracket tau0
+    max_bnd = 1
+    sgn = sign(deriv_f(0))
+    iter = 0
+    for iter = 1:max_iter
+        if sgn * deriv_f(max_bnd) < 0
+            break
+        else
+            max_bnd *= 2
+        end
+    end
+    #if iteration limit reached, just return zeros
+    if iter == max_iter
+        return zeros(length(xs))
+    end
+
+    tau_ridge = fzero(deriv_f, 0, max_bnd)
+    println("Tau Ridge:\t", tau_ridge)
+    zs = .5 * (xs + ys)
+    q(cs, shrink(zs, vs, tau_ridge))
+end
 
 function q_linreg(cs, rs, ts)
 	a, b = linreg(rs, ts) 
