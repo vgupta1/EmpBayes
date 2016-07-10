@@ -327,6 +327,7 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
+			@assert abs(thetaval - maximum(objs)) <= 1e-12 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
 
 		end
@@ -337,9 +338,14 @@ end
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
+test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
+test_Gaussian("temp", 20, n_grid, 8675309, 2, 0)
+
+
 test_Gaussian("temp_Gaussian", 5, [100, 150], 87, 3)
 test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
 test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
 test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
 test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
+test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)

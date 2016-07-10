@@ -6,12 +6,16 @@ library(reshape2)
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
 
 ##redone with new harness
-dat = read.csv("test1_new_10_8675309.csv")
-dat = read.csv("test2_new_2")
-dat = read.csv("test3_new_Exponential_1.0_1.0_8675309.csv")
+dat = read.csv("Results/testResults_Gamma_1_0.5_8675309.csv")
+dat = read.csv("Results/testResults_Gamma_1_2_8675309.csv")
+dat = read.csv("Results/testResults_Uniform_-1_1_8675309.csv")
+dat = read.csv("Results/testResults_Uniform_-3_3_8675309.csv")
+dat = read.csv("Results/testResults_Beta_0.5_0.5_8675309.csv")
 
-#limit yourself to interesitng metohds
-method_bad = c("FullInfo", "MM", "NaiveZ", "NaiveX", "OracleX", "Rescaled_1.0", "Rescaled_2.0", "Rescaled_4.0")
+dat = read.csv("Results/test_gaussian_means_-3_2_8675309.csv")
+
+#limit yourself to interesting metohds
+method_bad = c("MLE", "FullInfo", "NaiveZ", "NaiveX", "OracleX", "Rescaled", "Rescaled_2.0", "Rescaled_4.0")
 
 ##top level summary
 dat %>% group_by(Method) %>% filter(n>4000, ! Method %in% method_bad) %>%
@@ -31,9 +35,8 @@ filter(dat, n>65000, !Method %in% method_bad) %>%
 #progression in n
 pos = position_dodge(.2)
 dat %>%filter(n >2000) %>%
-  filter(! Method %in% method_bad) %>%
-  filter( Method != "EmpBayesX") %>%
-#  filter(Method %in% c(""NaiveZ", "MLE","MM", "OracleZ", "Rescaled")) %>%
+  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
+                         "OracleX", "NaiveZ", "MM") ) %>%
   group_by(n, Method) %>%
   summarise(avg=mean(thetaVal), 
             low=quantile(thetaVal,.05), 
@@ -45,6 +48,30 @@ dat %>%filter(n >2000) %>%
   scale_x_log10() + 
   theme(legend.title=element_blank())
   
+##Convergence of taus?
+dat %>% 
+  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
+                         "OracleX", "NaiveZ", "MM") ) %>%
+  filter(! Method %in% c("Rescaled_0.125", "Rescaled_0.25")) %>%
+  filter(n < 1e3) %>%
+  ggplot(aes(x=n, y=tau0, color=Method, group=Method), data=.) + 
+  geom_smooth(se=FALSE) +
+  scale_x_log10()  + 
+  theme_bw()
+
+dat %>% 
+  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
+                         "OracleX", "NaiveZ", "MM") ) %>%
+  group_by(Method, n) %>%
+  summarize(mean(tau0)) %>% dcast(n ~ Method) %>% select(n, OracleZ, Rescaled)  
+
+
+
+
+
+
+
+
 pos = position_dodge(.2)
 dat %>%filter(n >2000) %>%
   filter(! Method %in% method_bad) %>%
@@ -68,13 +95,6 @@ dat %>% filter(Run == 6) %>%
   geom_point() + geom_line() + 
   scale_x_log10()
 
-##Convergence of taus?
-dat %>% 
-  filter(Method %in% c("MLE", "MM", "OracleZ", "ZZ", "Rescaled")) %>%
-ggplot(aes(x=n, y=tau0, color=Method, group=Method), data=.) + 
-  geom_smooth(aes(fill=Method)) +
-  scale_x_log10()  + 
-  theme_bw()
 
 
 ########

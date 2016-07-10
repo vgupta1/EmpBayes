@@ -2,19 +2,16 @@ module KP
 using Distributions
 using Roots
 
-export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam
+export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink
 
-#some possibly useful helpers?
-export shrink
+shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
 
-shrink(Xs, vs, tau0) = (vs ./ (vs + tau0)) .* Xs
-
-#Scales costs by n internally
-#The dual return fails if the particular run is degenerate.  
-function q_dual(cs, rs)
+#cs_unscaled should have entries on order unity.
+#The dual return fails with value -1 if the particular run is degenerate.  
+function q_dual(cs_unscaled, rs)
     const n = length(rs)
-    ratios = rs ./ cs
-    cs = cs/n #makes a copy
+    ratios = rs ./ cs_unscaled
+    cs = cs_unscaled/n #makes a copy
     indx = sortperm(ratios, rev=true)
     out = zeros(Float64, length(indx))
     weight = 0.
@@ -39,15 +36,15 @@ function q_dual(cs, rs)
     out, dual
 end
 
-q(cs, rs) = q_dual(cs, rs)[1]
-function lam(zs, tau, vs, cs)
+q(cs_unscaled, rs) = q_dual(cs_unscaled, rs)[1]
+function lam(zs, tau, vs, cs_unscaled)
     rs = shrink(zs, vs, tau)
-    q_dual(cs, rs)[2]
+    q_dual(cs_unscaled, rs)[2]
 end
 
-function dual_obj(zs, tau, vs, cs)
-    l = lam(zs, tau, vs, cs)
-    l + mean(max(0, shrink(zs, vs, tau) .- l * cs))    
+function dual_obj(zs, tau, vs, cs_unscaled)
+    l = lam(zs, tau, vs, cs_unscaled)
+    l + mean(max(0, shrink(zs, vs, tau) .- l * cs_unscaled))    
 end
 
 #used to in computing the entire tau-grid
@@ -76,12 +73,15 @@ function indmin_thresh(vals, thresh)
 end
 
 ## searches over bfs to figure out the best value of tau0
-function best_q_tau(cs, xs, vs, ys)
-	const TOL = 1e-8
+#  cs_unsc has entries order unity.  cs has entires order 1/n
+## returns max_qs, tau_vals, objs
+## objs[ix] is theobjective at tau_vals[ix] + eps
+function best_q_tau(cs_unscaled, xs, vs, ys)
+	const TOL = 1e-10
 	const n = length(xs)
-	ratios = xs ./ cs
+	ratios = xs ./ cs_unscaled
 	indx = sortperm(ratios, rev=true)
-	cs = cs/n  #makes a copy
+	cs = cs_unscaled/n  #makes a copy
 
 	vals = Float64[]
 	objs = Float64[]
@@ -135,6 +135,13 @@ function best_q_tau(cs, xs, vs, ys)
     	if obj > max_obj
     		max_obj = obj
     		max_tau0 = tau0
+
+            ##VG double-check the debug
+            qs_ = KP.q(cs_unscaled, shrink(xs, vs, tau0 + TOL))
+            if norm(qs - qs_)/n > 1e-10
+                println("WrongQ: \t $tau0 \t $(norm(qs - qs_)/n)")
+            end
+
     	end    
 
     	##Find the entering indx if it exists
@@ -186,7 +193,13 @@ function best_q_tau(cs, xs, vs, ys)
 
     ##assume that solving one last time is short relative to costs
     ##have to unscale cs for this to work
-    max_qs = KP.q(cs * n, shrink(xs, vs, max_tau0))
+#    println("Max Tau0: \t $max_tau0")
+    max_qs = KP.q(cs_unscaled, shrink(xs, vs, max_tau0+TOL))
+
+    # ##VG Debugging
+    # max_objs_ = maximum(objs)
+    # max_objs_2 = dot(max_qs, ys)/n
+    # @assert abs(max_objs_ - max_objs_2)<= 1e-12 "Mismatch \t $max_objs_ \t $max_objs_2"    
     return max_qs, vals, objs 
 end
 
@@ -196,7 +209,6 @@ function q_MM(cs, zs, vs)
 	tau_mm = max(0, tau_mm)
 	tau_mm, q(cs, shrink(zs, vs, tau_mm))
 end
-
 
 ##The MLE doesn't always solve properly
 ##Instead of throwing, just return a -1 and the qs corresponding to tau0 = 0
