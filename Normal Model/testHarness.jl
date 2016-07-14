@@ -1,25 +1,72 @@
 ##Tests for the Small-Data KP
-
 include("KPNormal.jl")
 using Distributions, KP
 
 #Given a simulation object, generaton of data is same model to model
 function simData!(o, xs, ys, zs)
-	zs[:] = randn!(zs) ./ sqrt(o.taus) + o.thetas
-	o.noise[:] = randn!(o.noise) ./ sqrt(o.taus)
+	zs[:] = randn!(zs) ./ sqrt(o.vs) + o.thetas
+	o.noise[:] = randn!(o.noise) ./ sqrt(o.vs)
 	xs[:] = zs + o.noise
 	ys[:] = zs - o.noise 
 end
 
 #Default implementation
-#Leaves cs, thetas and taus fixed in o
+#Leaves cs, thetas and vs fixed in o
 sim!(o, x, y, z) = simData!(o, x, y, z)
 
-#cs and taus fixed across all runs
+
+## my belief is that the following constitutes a counter-example to 
+# tauxy/2 policy
+type UniformLikelihoodExp
+	cs
+	vs
+	thetas
+	dist_odd
+	dist_even
+end
+
+#even numbers have higher mean, lower std. dev
+function UniformLikelihoodExp(seed::Integer, theta_even, theta_odd, width_even, width_odd, n_max, lamp)
+	srand(seed)
+	@assert rem(n_max, 2) == 0
+
+	#compute the value of c and populate
+	@assert theta_even + width_even < lamp < theta_odd + width_odd
+	c = 4 * width_odd / (theta_odd + width_odd - lamp)	
+	println("C Value:\t", c)
+	cs = c * ones(n_max)
+
+	#check that we've picked values corresponding to the "interesting" case
+	@assert theta_odd + width_odd > theta_even + width_even
+	thetas = theta_odd * ones(n_max)
+	thetas[2:2:n_max] = theta_even
+	widths = width_odd * ones(n_max)
+	widths[2:2:n_max] = width_even
+
+	#create the distributions for later
+	dist_odd = Uniform(theta_odd - width_odd, theta_odd + width_odd)
+	dist_even = Uniform(theta_even - width_even, theta_even + width_even)
+	UniformLikelihoodExp(cs, widths.^(-2),  thetas, dist_odd, dist_even)
+end
+
+##Specialized implementation for non-gaussian likelihood
+function sim!(o::UniformLikelihoodExp, xs, ys, zs)	
+	n_max = length(o.cs)
+	half_n_max = round(Int, n_max/2)
+
+	xs[1:2:n_max] = rand(o.dist_odd, half_n_max)
+	xs[2:2:n_max] = rand(o.dist_even, half_n_max)
+	ys[1:2:n_max] = rand(o.dist_odd, half_n_max)
+	ys[2:2:n_max] = rand(o.dist_even, half_n_max)
+	zs = .5 * (xs + ys);
+end
+
+
+#cs and vs fixed across all runs
 #thetas drawn as gaussians tau0
 type NormalBayesExp
 	cs
-	taus
+	vs
 	thetas
 	noise
 	tau0
@@ -29,11 +76,11 @@ end
 function NormalBayesExp(seed::Integer, tau0, n_max, mu0, frac_fit=.1, avg_tau=4.)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
-	taus = 2. * avg_tau * rand(n_max)
-	NormalBayesExp(cs, taus, zeros(Float64, n_max), zeros(Float64, n_max), tau0, mu0)
+	vs = 2. * avg_tau * rand(n_max)
+	NormalBayesExp(cs, vs, zeros(Float64, n_max), zeros(Float64, n_max), tau0, mu0)
 end
 
-#cs taus remain fixed
+#cs vs remain fixed
 function sim!(o::NormalBayesExp, x, y, z)
 	randn!(o.thetas) 
 	o.thetas /= sqrt(o.tau0)
@@ -44,30 +91,30 @@ end
 type OddEvenExp
 	cs
 	thetas
-	taus
+	vs
 	noise
 end
 
-#cs and taus fixed across all runs
+#cs and vs fixed across all runs
 function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=.1)
 	srand(seed)
 	cs = 1./frac_fit * ones(Float64, n_max)
 
 	thetas = ones(Float64, n_max)
 	thetas[1:2:n_max] = odd_theta
-	taus = ones(Float64, n_max)
-	taus[1:2:n_max] = odd_tau
+	vs = ones(Float64, n_max)
+	vs[1:2:n_max] = odd_tau
 
 	noise = zeros(Float64, n_max)
-	OddEvenExp(cs, thetas, taus, noise)
+	OddEvenExp(cs, thetas, vs, noise)
 end
 
-#cs and taus fixed across all runs
+#cs and vs fixed across all runs
 #thetas drawn as gamma(alpha, beta)
 type GammaExp
 	cs
 	thetas
-	taus
+	vs
 	noise
 	alpha
 	beta
@@ -78,22 +125,22 @@ end
 function GammaExp(seed::Integer, alpha, beta, n_max, frac_fit = .1, avg_tau=2)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
-	taus = 2. * avg_tau * rand(n_max)
-	GammaExp(cs, zeros(Float64, n_max), taus, zeros(Float64, n_max), alpha, beta)
+	vs = 2. * avg_tau * rand(n_max)
+	GammaExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), alpha, beta)
 end
 
 function sim!(o::GammaExp, x, y, z)
-	#cs & taus are fixed
+	#cs & vs are fixed
 	rand!(Gamma(o.alpha, o.beta), o.thetas) 	
 	simData!(o, x, y, z)	
 end
 
-#cs and taus fixed across all runs
+#cs and vs fixed across all runs
 #thetas drawn as uniform [a, b]
 type UniformExp
 	cs
 	thetas
-	taus
+	vs
 	noise
 	a
 	b
@@ -102,23 +149,23 @@ end
 function UniformExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_tau=2)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
-	taus = 2. * avg_tau * rand(n_max)
-	UniformExp(cs, zeros(Float64, n_max), taus, zeros(Float64, n_max), a, b)
+	vs = 2. * avg_tau * rand(n_max)
+	UniformExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), a, b)
 end
 
 function sim!(o::UniformExp, x, y, z)
-	#cs & taus are fixed
+	#cs & vs are fixed
 	rand!(Uniform(o.a, o.b), o.thetas) 	
 	simData!(o, x, y, z)	
 end
 
 
-#cs and taus fixed across all runs
+#cs and vs fixed across all runs
 #thetas drawn as beta[a, b]
 type BetaExp
 	cs
 	thetas
-	taus
+	vs
 	noise
 	a
 	b
@@ -127,86 +174,14 @@ end
 function BetaExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_tau=2)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
-	taus = 2. * avg_tau * rand(n_max)
-	BetaExp(cs, zeros(Float64, n_max), taus, zeros(Float64, n_max), a, b)
+	vs = 2. * avg_tau * rand(n_max)
+	BetaExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), a, b)
 end
 
 function sim!(o::BetaExp, x, y, z)
-	#cs & taus are fixed
+	#cs & vs are fixed
 	rand!(Beta(o.a, o.b), o.thetas) 	
 	simData!(o, x, y, z)	
-end
-
-#######################
-### The usual bayesian normal setup
-### costs and taus are random, but fixed over runs
-function test_Gaussian(file_out, numRuns, n_grid, seed, tau0)
-	#build the sim object
-	o = NormalBayesExp(seed, tau0, maximum(n_grid), 0)
-
-	#run the testharness
-	#output files
-	f = open("$(file_out)_$(tau0)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-end
-
-### Bayesian set-up with a non-zero mean
-### costs and taus are random, but fixed over runs
-function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0)
-	#build the sim object
-	o = NormalBayesExp(seed, tau0, maximum(n_grid), mu0)
-
-	#run the testharness
-	#output files
-	f = open("$(file_out)_$(mu0)_$(tau0)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-end
-
-### The odd even set-up.  
-function test_OddEven(file_out, numRuns, n_grid, seed, odd_theta, odd_tau)
-	#build the sim object
-	o = OddEvenExp(seed, maximum(n_grid), odd_theta, odd_tau)
-
-	#run the testharness
-	#output files
-	f = open("$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-end
-
-### The Gamma Test
-function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
-	o = GammaExp(seed, alpha, beta, maximum(n_grid))
-
-	f = open("$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-end
-
-### The Uniform Test
-function test_Uniform(file_out, numRuns, n_grid, seed, a, b)
-	o = UniformExp(seed, a, b, maximum(n_grid))
-
-	f = open("$(file_out)_Uniform_$(a)_$(b)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-end
-
-### The Beta Test
-function test_Beta(file_out, numRuns, n_grid, seed, a, b)
-	o = BetaExp(seed, a, b, maximum(n_grid))
-
-	f = open("$(file_out)_Beta_$(a)_$(b)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
 end
 
 
@@ -265,7 +240,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#The "Bayes" value.. only possible bc we if we we are in bayesian
 			if :tau0 in fieldnames(o)
 				tic()
-				qs = q(o.cs[1:n], shrink(zs[1:n], o.taus[1:n], o.tau0))
+				qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], o.tau0))
 				t = toc()
 				yval = dot(ys[1:n], qs)/n
 				thetaval = dot(o.thetas[1:n], qs)/n
@@ -274,7 +249,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Tau MLE
 			tic()
-			tauMLE, qs = q_MLE(o.cs[1:n], zs[1:n], o.taus[1:n])
+			tauMLE, qs = q_MLE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -282,7 +257,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Tau MM
 			tic()
-			tauMM, qs = q_MM(o.cs[1:n], zs[1:n], o.taus[1:n])
+			tauMM, qs = q_MM(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -290,7 +265,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Our sample split method x
 			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.taus[1:n], ys[1:n])
+			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -298,7 +273,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#rescaling the sample_split method
 			tau_RS = vals[indmax(objs)]/2
-			qs = q(o.cs[1:n], shrink(zs[1:n], o.taus[1:n], tau_RS))
+			qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
@@ -307,7 +282,7 @@ function test_harness(f, numRuns, o, n_grid)
 			for i = -3:3
 				i == -1 && continue  #already computed the rescaled value
 				tau_RS = vals[indmax(objs)]/ 2.0^i
-				qs = q(o.cs[1:n], shrink(zs[1:n], o.taus[1:n], tau_RS))
+				qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
 				yval = dot(ys[1:n], qs)/n
 				thetaval = dot(o.thetas[1:n], qs)/n
 				writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
@@ -315,7 +290,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Oracle X method
 			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.taus[1:n], o.thetas[1:n])
+			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -323,7 +298,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Oracle Z method
 			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], zs[1:n], o.taus[1:n], o.thetas[1:n])
+			qs, vals, objs = best_q_tau(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -332,7 +307,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Ridge Proxy
 			tic()
-			qs = q_ridge(cs, xs, ys, vs)
+			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
@@ -342,17 +317,107 @@ function test_harness(f, numRuns, o, n_grid)
 	end
 end
 
+#######################
+### The usual bayesian normal setup
+### costs and vs are random, but fixed over runs
+function test_Gaussian(file_out, numRuns, n_grid, seed, tau0)
+	#build the sim object
+	o = NormalBayesExp(seed, tau0, maximum(n_grid), 0)
+
+	#run the testharness
+	#output files
+	f = open("$(file_out)_$(tau0)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_$(tau0)_$(seed).csv"
+end
+
+### Bayesian set-up with a non-zero mean
+### costs and vs are random, but fixed over runs
+function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0)
+	#build the sim object
+	o = NormalBayesExp(seed, tau0, maximum(n_grid), mu0)
+
+	#run the testharness
+	#output files
+	f = open("$(file_out)_$(mu0)_$(tau0)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_$(mu0)_$(tau0)_$(seed).csv"
+end
+
+### The odd even set-up.  
+function test_OddEven(file_out, numRuns, n_grid, seed, odd_theta, odd_tau)
+	#build the sim object
+	o = OddEvenExp(seed, maximum(n_grid), odd_theta, odd_tau)
+
+	#run the testharness
+	#output files
+	f = open("$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv"
+end
+
+### The Gamma Test
+function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
+	o = GammaExp(seed, alpha, beta, maximum(n_grid))
+
+	f = open("$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv"
+end
+
+### The Uniform Test
+function test_Uniform(file_out, numRuns, n_grid, seed, a, b)
+	o = UniformExp(seed, a, b, maximum(n_grid))
+
+	f = open("$(file_out)_Uniform_$(a)_$(b)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_Uniform_$(a)_$(b)_$(seed).csv"
+end
+
+### The Beta Test
+function test_Beta(file_out, numRuns, n_grid, seed, a, b)
+	o = BetaExp(seed, a, b, maximum(n_grid))
+
+	f = open("$(file_out)_Beta_$(a)_$(b)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_Beta_$(a)_$(b)_$(seed).csv"
+end
+
+### The Beta Test
+function test_UniformLikelihood(numRuns, n_grid, seed, theta_high, width_low, width_high, lamp)
+	o = UniformLikelihoodExp(seed, theta_high, 1., width_high, width_low, maximum(n_grid), lamp)
+	f = open("UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv", "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv"
+end
+
+
+#########
 n_grid = [2^i for i = 8:17]
+
+#temp to assert counterexample
+n_grid = [2^i for i = 8:17]
+test_UniformLikelihood(3, [100, 150], 87, 3, 5, 1, 5.9)
+
+exit()
 
 #run some small examples to pre-compile for optimization
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
-test_Gaussian("temp", 20, n_grid, 8675309, 2, 0)
-
-
-test_Gaussian("temp_Gaussian", 5, [100, 150], 87, 3)
 test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
 test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
 test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
-test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
 test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
-test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)

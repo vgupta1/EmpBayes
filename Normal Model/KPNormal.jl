@@ -263,7 +263,6 @@ function q_ridge(cs, xs, ys, vs; max_iter = 8)
     end
 
     tau_ridge = fzero(deriv_f, 0, max_bnd)
-    println("Tau Ridge:\t", tau_ridge)
     zs = .5 * (xs + ys)
     q(cs, shrink(zs, vs, tau_ridge))
 end
