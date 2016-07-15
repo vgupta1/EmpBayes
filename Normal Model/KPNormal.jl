@@ -152,7 +152,7 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     		if cs[indx_p]/cs[frac_indx] <= 1 - qs[frac_indx]
     			qs[indx_p] = 0
     			qs[frac_indx] += cs[indx_p]/cs[frac_indx]
-    			@assert qs[frac_indx] < 1  "Degeneracy?"
+    			@assert qs[frac_indx] < 1  "Degeneracy? $(qs[frac_indx])"
 
     			#frac_indx and s_vals stay the same
     			tau0 = svals[indx_p]

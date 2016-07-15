@@ -58,7 +58,7 @@ function sim!(o::UniformLikelihoodExp, xs, ys, zs)
 	xs[2:2:n_max] = rand(o.dist_even, half_n_max)
 	ys[1:2:n_max] = rand(o.dist_odd, half_n_max)
 	ys[2:2:n_max] = rand(o.dist_even, half_n_max)
-	zs = .5 * (xs + ys);
+	zs[:] = .5 * (xs + ys);
 end
 
 
@@ -410,10 +410,8 @@ end
 n_grid = [2^i for i = 8:17]
 
 #temp to assert counterexample
-n_grid = [2^i for i = 8:17]
-test_UniformLikelihood(3, [100, 150], 87, 3, 5, 1, 5.9)
-
-exit()
+n_grid = [2^i for i = 8:20]
+test_UniformLikelihood(2, [100, 150], 8675309, 10., 15., 1., 14.1)
 
 #run some small examples to pre-compile for optimization
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
