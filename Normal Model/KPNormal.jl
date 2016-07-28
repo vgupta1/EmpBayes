@@ -187,7 +187,7 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
 
     ##assume that solving one last time is short relative to costs
     ##have to unscale cs for this to work
-    max_qs = KP.q(cs_unscaled, shrink(xs, vs, max_tau0+TOL))
+    max_qs = q(cs_unscaled, shrink(xs, vs, max_tau0+TOL))
 
     return max_qs, vals, objs 
 end
@@ -267,22 +267,72 @@ function q_ridge(cs, xs, ys, vs; max_iter = 8)
     q(cs, shrink(zs, vs, tau_ridge))
 end
 
-function q_linreg(cs, rs, ts)
-	a, b = linreg(rs, ts) 
-	rhat = a + b*rs
-	q(cs, rhat)
+#helper function.  not to be exposed
+#cs are unscaled (each element order unity)
+function qi_l2reg(lam, ci, ri, mu)
+    if ri/ci < lam 
+        return 0
+    elseif ri/ci > lam + mu/ci
+        return 1
+    else
+        return (ri - lam*ci)/mu
+    end
 end
 
-function perf_reg(thetas, cs, numSims)
-	const n = length(thetas)
-	out = zeros(Float64, n, 3)
-	for iSim = 1:numSims
-		Xs = randn(n) ./ sqrt(vs) + thetas
-		Ys = randn(n) ./ sqrt(vs) + thetas
-		q = q_linreg(cs, Xs, Ys)
-		out[iSim, 1] = dot(q, thetas) / n
-	end
-	out
+#cs are unscaled (each element order unity)
+function q_l2reg(cs, rs, mu)
+    #find lambda by making knapsack tight
+    #Test value at lam = 0 for safety
+    const n = length(cs)
+    f(lam) = dot(cs, [qi_l2reg(lam, cs[ix], rs[ix], mu) for ix =1:n] )/n
+
+    if f(0) < 1
+        println("All Items fit.")
+        return [qi_l2reg(lam, cs[ix], rs[ix], mu) for ix =1:n], 0.
+    else
+        #bracket for ub
+        lb, ub = 0., 1.
+        iter = 1
+        MAX_ITER = 20
+        while f(ub) > 1 && iter < MAX_ITER
+            lb = ub
+            ub *= 2
+            iter += 1
+        end
+        lamstar = fzero(lam-> f(lam) -1, [lb, ub])
+        return [qi_l2reg(lamstar, cs[ix], rs[ix], mu) for ix =1:n], lamstar
+    end
+end
+
+## the explicit evaluation of the dirac term with lambda approx in a stein expansion
+function exp_qprime(vs, tau, zs, lam, cs, thetas)
+    out = 0.
+    for ix = 1:length(vs)
+        out += 1/sqrt(2*pi*vs[ix]) * exp(-.5 * (vs[ix]+tau)^2/vs[ix] * (lam*cs[ix] - vs[ix]*thetas[ix]/(vs[ix]+tau))^2 )
+    end
+    out/length(vs)
+end
+
+#Chooses tau via the stein formula using an exact calculation for the dirac
+#only approximations are lam(t,z) -> lam(t) and ULLN
+function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max = 5.)
+    tau_grid = collect(0.:tau_step:tau_max)
+    objs = zeros(length(tau_grid))
+    obj_best = -Inf
+    tau_best = -1.
+    for ix = 1:length(tau_grid)
+        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        #compute the value corresponding to evaluating the dirac
+        #approximates lambda by the finite dual value...
+        objs[ix] = dot(zs, qs)/length(vs) - exp_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, thetas)
+
+        if objs[ix] > obj_best
+            tau_best = tau_grid[ix]
+            obj_best = objs[ix]
+        end
+    end
+    
+    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
 end
 
 end #ends module

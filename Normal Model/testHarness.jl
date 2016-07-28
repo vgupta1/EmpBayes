@@ -288,6 +288,14 @@ function test_harness(f, numRuns, o, n_grid)
 				writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
 			end
 
+			#The idealized stein approach
+			tic()
+			qs, vals, objs = KP.stein_q_tau_exact(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ExactStein" yval thetaval t vals[indmax(objs)]])
+
 			#Oracle X method
 			tic()
 			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], o.thetas[1:n])
@@ -409,13 +417,14 @@ end
 #########
 n_grid = [2^i for i = 8:17]
 
-#temp to assert counterexample
-n_grid = [2^i for i = 8:20]
-test_UniformLikelihood(2, [100, 150], 8675309, 10., 15., 1., 14.1)
-
 #run some small examples to pre-compile for optimization
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
-test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
-test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
-test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
-test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
+# test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
+# test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
+# test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
+# test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
+
+# #The counterexample
+# n_grid = [2^i for i = 8:20]
+# test_UniformLikelihood(2, [100, 150], 8675309, 10., 15., 1., 14.1)
+
