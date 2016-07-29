@@ -1,8 +1,10 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "uniform_exp"
-a = @spawn test_Uniform(tag, 10, n_grid, 8675309000, 1., 2.)
-b = @spawn test_Uniform(tag, 10, n_grid, 5165164290, 1., 2.)
-c = @spawn test_Uniform(tag, 10, n_grid, 5167462266, 1., 2.)
+tag = "gaussian_exp"
+a = @spawn test_Gaussian(tag, 15, n_grid, 1675309000, 3., 5.)
+b = @spawn test_Gaussian(tag, 15, n_grid, 2165164290, 3., 5.)
+c = @spawn test_Gaussian(tag, 15, n_grid, 3167462266, 3., 5.)
+
+######
 
 file_a = fetch(a)
 file_b = fetch(b)
