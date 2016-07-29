@@ -321,7 +321,7 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			@assert abs(thetaval - maximum(objs)) <= 1e-7 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
+			@assert abs(thetaval - maximum(objs)) <= 1e-4 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
 
 			#Ridge Proxy
