@@ -367,6 +367,46 @@ function stein_q_tau_impulse(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5
     return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
 end
 
+##This is done in the laziest way possible
+function primal_approx_qprime(vs, tau, zs, lam, cs, h)
+    out = 0.
+    const n = length(vs)
+    ej = zeros(n)
+    for jx = 1:n
+        if jx > 1
+            ej[jx-1] = 0.
+        end
+        ej[jx] = .5h
+
+        qs_p = q(cs, shrink(zs + ej, vs, tau))[jx]
+        qs_m = q(cs, shrink(zs - ej, vs, tau))[jx]
+
+        out += (qs_p - qs_m)/h/vs[jx]
+    end
+    out/n
+end
+
+# a smarter way to do this would leverage the parametric programming
+function stein_q_tau_primal(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5.)
+    tau_grid = collect(0.:tau_step:tau_max)
+    objs = zeros(length(tau_grid))
+    obj_best = -Inf
+    tau_best = -1.
+    const n =length(vs)
+    for ix = 1:length(tau_grid)
+        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        #compute the value corresponding to evaluating the dirac
+        #approximates lambda by the finite dual value...
+        objs[ix] = dot(zs, qs)/n - primal_approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h)
+
+        if objs[ix] > obj_best
+            tau_best = tau_grid[ix]
+            obj_best = objs[ix]
+        end
+    end
+    
+    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
+end
 
 
 end #ends module
