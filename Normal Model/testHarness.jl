@@ -433,7 +433,7 @@ test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
 test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
 test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
 test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
-test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
+test_Beta("temp_Beta", 5, [100, 150], 87, .5, .5)
 
 # #The counterexample
 # n_grid = [2^i for i = 8:20]
