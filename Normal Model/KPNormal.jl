@@ -335,4 +335,38 @@ function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max 
     return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
 end
 
+impulse(t, h) = abs(t) < .5h ? 1/h : 0.
+## approximate the diract with an impulse of length h
+function approx_qprime(vs, tau, zs, lam, cs, h)
+    out = 0.
+    for ix = 1:length(vs)
+        out += 1/(vs[ix] + tau)*impulse( vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix], h)
+    end
+    out / length(vs)
+end
+
+#Chooses tau via the stein formula using an exact calculation for the dirac
+#only approximations are lam(t,z) -> lam(t) and ULLN
+function stein_q_tau_impulse(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5.)
+    tau_grid = collect(0.:tau_step:tau_max)
+    objs = zeros(length(tau_grid))
+    obj_best = -Inf
+    tau_best = -1.
+    for ix = 1:length(tau_grid)
+        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        #compute the value corresponding to evaluating the dirac
+        #approximates lambda by the finite dual value...
+        objs[ix] = dot(zs, qs)/length(vs) - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h)
+
+        if objs[ix] > obj_best
+            tau_best = tau_grid[ix]
+            obj_best = objs[ix]
+        end
+    end
+    
+    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
+end
+
+
+
 end #ends module

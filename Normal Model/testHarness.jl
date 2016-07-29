@@ -296,6 +296,17 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "ExactStein" yval thetaval t vals[indmax(objs)]])
 
+			#The impuse stein approach
+			#use the optimized rate, i.e. h_n = n^-1/6
+			h = n^-.16666
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ImpulseStein" yval thetaval t vals[indmax(objs)]])
+
+
 			#Oracle X method
 			tic()
 			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], o.thetas[1:n])
@@ -310,7 +321,7 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			@assert abs(thetaval - maximum(objs)) <= 1e-4 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
+			@assert abs(thetaval - maximum(objs)) <= 1e-7 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
 
 			#Ridge Proxy
@@ -419,10 +430,10 @@ n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
-# test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
-# test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
-# test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
-# test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
+test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
+test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
+test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
+test_Beta("temp_Uniform", 5, [100, 150], 87, .5, .5)
 
 # #The counterexample
 # n_grid = [2^i for i = 8:20]
