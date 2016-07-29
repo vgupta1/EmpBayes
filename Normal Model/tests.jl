@@ -1,8 +1,8 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "gaussian_exp"
-a = @spawn test_Gaussian(tag, 15, n_grid, 1675309000, 3., 5.)
-b = @spawn test_Gaussian(tag, 15, n_grid, 2165164290, 3., 5.)
-c = @spawn test_Gaussian(tag, 15, n_grid, 3167462266, 3., 5.)
+tag = "oddeven_exps"
+a = @spawn test_OddEven(tag, 15, n_grid, 1675309000, 2., 2.)
+b = @spawn test_OddEven(tag, 15, n_grid, 2165164290, 2., 2.)
+c = @spawn test_OddEven(tag, 15, n_grid, 3167462266, 2., 2.)
 
 ######
 
