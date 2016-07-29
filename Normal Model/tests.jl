@@ -1,8 +1,8 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "oddeven_exps"
-a = @spawn test_OddEven(tag, 15, n_grid, 1675309000, 2., 2.)
-b = @spawn test_OddEven(tag, 15, n_grid, 2165164290, 2., 2.)
-c = @spawn test_OddEven(tag, 15, n_grid, 3167462266, 2., 2.)
+tag = "gamma_exps"
+a = @spawn test_Gamma(tag, 15, n_grid, 1675309000, 1., 1.)
+b = @spawn test_Gamma(tag, 15, n_grid, 2165164290, 1., 1.)
+c = @spawn test_Gamma(tag, 15, n_grid, 3167462266, 1., 1.)
 
 ######
 
