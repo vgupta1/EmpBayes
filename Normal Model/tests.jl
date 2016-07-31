@@ -1,9 +1,8 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "gamma_exps"
-a = @spawn test_Gamma(tag, 15, n_grid, 1675309000, 1., 1.)
-b = @spawn test_Gamma(tag, 15, n_grid, 2165164290, 1., 1.)
-c = @spawn test_Gamma(tag, 15, n_grid, 3167462266, 1., 1.)
-
+tag = "uniformCLT_exp_10_2"
+a = @spawn test_CLTExp(tag, 15, n_grid, 1675309000, 10, 2.)
+b = @spawn test_CLTExp(tag, 15, n_grid, 2165164290, 10, 2.)
+c = @spawn test_CLTExp(tag, 15, n_grid, 3167462266, 10, 2.)
 ######
 
 file_a = fetch(a)

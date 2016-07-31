@@ -2,7 +2,7 @@
 include("KPNormal.jl")
 using Distributions, KP
 
-#Given a simulation object, generaton of data is same model to model
+#Default simulation of normal random variates
 function simData!(o, xs, ys, zs)
 	zs[:] = randn!(zs) ./ sqrt(o.vs) + o.thetas
 	o.noise[:] = randn!(o.noise) ./ sqrt(o.vs)
@@ -14,9 +14,47 @@ end
 #Leaves cs, thetas and vs fixed in o
 sim!(o, x, y, z) = simData!(o, x, y, z)
 
+#Following simulates N rvs according to the given distributions
+#AS N increases, this should approximately have gaussian likelihood
+type CLTExp
+	cs
+	vs
+	thetas
+	dists
+	N
+end
 
-## my belief is that the following constitutes a counter-example to 
-# tauxy/2 policy
+#thetas are generated as gaussian
+#widths are randomly genrated between [0, width_max]
+#intervals are centered on thetas
+function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
+	srand(seed)
+	@assert rem(N, 2) == 0
+	cs = rand(n_max) * 2./frac_fit   
+	widths = rand(n_max) * width_max + .1
+	vs = 12 ./ widths.^2
+	thetas = randn(n_max) ./ sqrt(tau0)
+
+	dists = Array(Distributions.Uniform, n_max)
+	for ix = 1:n_max
+		dists[ix] = Uniform(thetas[ix] - widths[ix]/2, thetas[ix] + widths[ix]/2)
+	end
+	CLTExp(cs, vs, thetas, dists, N)
+end
+
+function sim!(o::CLTExp, xs, ys, zs)	
+	const n_max = length(o.cs)
+	zetas = zeros(o.N)
+	const half_N = round(Int, o.N/2)
+	for ix = 1:n_max
+		rand!(o.dists[ix], zetas)
+		xs[ix] = mean(zetas[1:half_N])
+		ys[ix] = mean(zetas[(half_N + 1):o.N])
+		zs[ix] = mean(zetas)
+	end
+end
+
+## The following constitutes a counter-example to tauxy/2 policy
 type UniformLikelihoodExp
 	cs
 	vs
@@ -60,7 +98,6 @@ function sim!(o::UniformLikelihoodExp, xs, ys, zs)
 	ys[2:2:n_max] = rand(o.dist_even, half_n_max)
 	zs[:] = .5 * (xs + ys);
 end
-
 
 #cs and vs fixed across all runs
 #thetas drawn as gaussians tau0
@@ -306,15 +343,15 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "ImpulseStein" yval thetaval t vals[indmax(objs)]])
 
-			#The primal stein approach
-			#use the optimized rate, i.e. h_n = n^-1/6
-			h = n^-.16666
-			tic()
-			qs, vals, objs = KP.stein_q_tau_primal(o.cs[1:n], zs[1:n], o.vs[1:n], h)
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
+			# #The primal stein approach
+			# #use the optimized rate, i.e. h_n = n^-1/6
+			# h = n^-.16666
+			# tic()
+			# qs, vals, objs = KP.stein_q_tau_primal(o.cs[1:n], zs[1:n], o.vs[1:n], h)
+			# t = toc()
+			# yval = dot(ys[1:n], qs)/n
+			# thetaval = dot(o.thetas[1:n], qs)/n
+			# writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
 
 			#Oracle X method
 			tic()
@@ -433,11 +470,20 @@ function test_UniformLikelihood(numRuns, n_grid, seed, theta_high, width_low, wi
 	return "UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv"
 end
 
+function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
+	o = CLTExp(seed, width_max, maximum(n_grid), N)
+	tag = "$(file_out)_CLTExp_$(N)_$(width_max)_$(seed).csv"
+	f = open(tag, "w")
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return tag
+end
 
 #########
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
+test_CLTExp("tempCLT", 5, [100, 150], 86, 10, 2)
 test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
 test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
 test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
