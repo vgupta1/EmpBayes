@@ -1,5 +1,5 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "gaussianExp"
+tag = "gaussianExp_3._0."
 numRuns = 15
 a = @spawn test_Gaussian(tag, numRuns, n_grid, 1675309000, 3., 0.)
 b = @spawn test_Gaussian(tag, numRuns, n_grid, 2165164290, 3., 0.)
