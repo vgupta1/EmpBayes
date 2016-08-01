@@ -1,8 +1,8 @@
 ## A small driver file to run the tests in parallel and combine them
-tag = "uniformCLT_exp_10_2"
-a = @spawn test_CLTExp(tag, 15, n_grid, 1675309000, 10, 2.)
-b = @spawn test_CLTExp(tag, 15, n_grid, 2165164290, 10, 2.)
-c = @spawn test_CLTExp(tag, 15, n_grid, 3167462266, 10, 2.)
+tag = "gaussianExp"
+a = @spawn test_Gaussian(tag, 15, n_grid, 1675309000, 3., 0.)
+b = @spawn test_Gaussian(tag, 15, n_grid, 2165164290, 3., 0.)
+c = @spawn test_Gaussian(tag, 15, n_grid, 3167462266, 3., 0.)
 ######
 
 file_a = fetch(a)

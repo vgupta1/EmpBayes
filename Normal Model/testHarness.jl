@@ -472,6 +472,7 @@ end
 
 function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
 	o = CLTExp(seed, width_max, maximum(n_grid), N)
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	tag = "$(file_out)_CLTExp_$(N)_$(width_max)_$(seed).csv"
 	f = open(tag, "w")
 	test_harness(f, numRuns, o, n_grid)
