@@ -1,8 +1,9 @@
 ## A small driver file to run the tests in parallel and combine them
 tag = "gaussianExp"
-a = @spawn test_Gaussian(tag, 15, n_grid, 1675309000, 3., 0.)
-b = @spawn test_Gaussian(tag, 15, n_grid, 2165164290, 3., 0.)
-c = @spawn test_Gaussian(tag, 15, n_grid, 3167462266, 3., 0.)
+numRuns = 15
+a = @spawn test_Gaussian(tag, numRuns, n_grid, 1675309000, 3., 0.)
+b = @spawn test_Gaussian(tag, numRuns, n_grid, 2165164290, 3., 0.)
+c = @spawn test_Gaussian(tag, numRuns, n_grid, 3167462266, 3., 0.)
 ######
 
 file_a = fetch(a)
@@ -17,11 +18,11 @@ println( file_c )
 data, header = readcsv(file_a, header=true)
 
 data_t = readcsv(file_b, skipstart=1)
-data_t[:, 1] += 10
+data_t[:, 1] += numRuns
 data = vcat(data, data_t)
 
 data_t = readcsv(file_c, skipstart=1)
-data_t[:, 1] += 20
+data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
 f = open("$(tag)_parallel_results.csv", "w")
