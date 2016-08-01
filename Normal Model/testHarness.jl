@@ -32,7 +32,7 @@ function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
 	@assert rem(N, 2) == 0
 	cs = rand(n_max) * 2./frac_fit   
 	widths = rand(n_max) * width_max + .1
-	vs = 12 ./ widths.^2
+	vs = 12N ./ widths.^2
 	thetas = randn(n_max) ./ sqrt(tau0)
 
 	dists = Array(Distributions.Uniform, n_max)
@@ -472,9 +472,9 @@ end
 
 function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
 	o = CLTExp(seed, width_max, maximum(n_grid), N)
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	tag = "$(file_out)_CLTExp_$(N)_$(width_max)_$(seed).csv"
 	f = open(tag, "w")
+	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return tag
