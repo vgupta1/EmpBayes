@@ -203,8 +203,8 @@ end
 ##Instead of throwing, just return a -1 and the qs corresponding to tau0 = 0
 function q_MLE(cs, zs, vs, max_bnd = 1e2)
 	#solve the MLE using a rootfinder solver for the variance and then invert
-	vs = 1./ vs
-	deriv_loglik(v) = mean(zs.^2 ./ (v + vs).^2 - 1./(v + vs))
+	vars = 1./ vs
+	deriv_loglik(v) = mean(zs.^2 ./ (v + vars).^2 - 1./(v + vars))
 
     #Check the bracket
     if deriv_loglik(0) * deriv_loglik(max_bnd) > 0
@@ -215,7 +215,7 @@ function q_MLE(cs, zs, vs, max_bnd = 1e2)
         if v0 >= max_bnd
             return -1, q(cs, zs)
         end
-    return 1/v0, q(cs, shrink(zs, vs, 1/v0))
+    return 1/v0, q(cs, shrink(zs, vars, 1/v0))
     end
 end
 
