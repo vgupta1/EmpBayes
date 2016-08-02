@@ -215,7 +215,7 @@ function q_MLE(cs, zs, vs, max_bnd = 1e2)
         if v0 >= max_bnd
             return -1, q(cs, zs)
         end
-    return 1/v0, q(cs, shrink(zs, vars, 1/v0))
+    return 1/v0, q(cs, shrink(zs, vs, 1/v0))
     end
 end
 
