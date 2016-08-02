@@ -315,15 +315,15 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
 
-			#Some rescalings by wrong factors
-			for i = -3:3
-				i == -1 && continue  #already computed the rescaled value
-				tau_RS = vals[indmax(objs)]/ 2.0^i
-				qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
-				yval = dot(ys[1:n], qs)/n
-				thetaval = dot(o.thetas[1:n], qs)/n
-				writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
-			end
+			# #Some rescalings by wrong factors
+			# for i = -3:3
+			# 	i == -1 && continue  #already computed the rescaled value
+			# 	tau_RS = vals[indmax(objs)]/ 2.0^i
+			# 	qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
+			# 	yval = dot(ys[1:n], qs)/n
+			# 	thetaval = dot(o.thetas[1:n], qs)/n
+			# 	writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
+			# end
 
 			#The idealized stein approach
 			tic()
@@ -337,7 +337,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#use the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h)
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .001)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
