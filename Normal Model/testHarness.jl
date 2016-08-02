@@ -337,7 +337,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#use the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .001)
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
