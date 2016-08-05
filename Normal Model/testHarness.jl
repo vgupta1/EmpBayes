@@ -341,7 +341,35 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ImpulseStein" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "ImpulseStein_6" yval thetaval t vals[indmax(objs)]])
+
+
+			h = n^-.33333
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ImpulseStein_3" yval thetaval t vals[indmax(objs)]])
+
+			h = n^-.111111
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ImpulseStein_9" yval thetaval t vals[indmax(objs)]])
+
+			h = n^-.45
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "ImpulseStein_45" yval thetaval t vals[indmax(objs)]])
+
+
+
 
 			# #The primal stein approach
 			# #use the optimized rate, i.e. h_n = n^-1/6
