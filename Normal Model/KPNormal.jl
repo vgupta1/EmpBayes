@@ -2,7 +2,7 @@ module KP
 using Distributions
 using Roots
 
-export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink, q_ridge
+export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink, q_ridge, q_l2reg
 
 shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
 
@@ -269,22 +269,22 @@ end
 
 #helper function.  not to be exposed
 #cs are unscaled (each element order unity)
-function qi_l2reg(lam, ci, ri, mu)
+function qi_l2reg(lam, ci, ri, vi, mu)
     if ri/ci < lam 
         return 0
-    elseif ri/ci > lam + mu/ci
+    elseif ri/ci > lam + mu/ci/vi
         return 1
     else
-        return (ri - lam*ci)/mu
+        return (ri - lam*ci)*vi/mu
     end
 end
 
 #cs are unscaled (each element order unity)
-function q_l2reg(cs, rs, mu)
+function q_l2reg(cs, rs, vs, mu)
     #find lambda by making knapsack tight
     #Test value at lam = 0 for safety
     const n = length(cs)
-    f(lam) = dot(cs, [qi_l2reg(lam, cs[ix], rs[ix], mu) for ix =1:n] )/n
+    f(lam) = dot(cs, [qi_l2reg(lam, cs[ix], rs[ix], vs[ix], mu) for ix =1:n] )/n
 
     if f(0) < 1
         println("All Items fit.")
@@ -300,7 +300,7 @@ function q_l2reg(cs, rs, mu)
             iter += 1
         end
         lamstar = fzero(lam-> f(lam) -1, [lb, ub])
-        return [qi_l2reg(lamstar, cs[ix], rs[ix], mu) for ix =1:n], lamstar
+        return [qi_l2reg(lamstar, cs[ix], rs[ix], vs[ix], mu) for ix =1:n], lamstar
     end
 end
 

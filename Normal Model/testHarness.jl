@@ -405,6 +405,32 @@ function test_harness(f, numRuns, o, n_grid)
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Ridge" yval thetaval t vals[indmax(objs)]])
+
+			#weighted l2 regularization  mu = .1
+			mu = .1
+			tic()
+			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Regularization_.1" yval thetaval t vals[indmax(objs)]])
+
+			mu = 1
+			tic()
+			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Regularization_1" yval thetaval t vals[indmax(objs)]])
+
+			mu = .01
+			tic()
+			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "Regularization_.01" yval thetaval t vals[indmax(objs)]])
+
 		end
 		flush(f)
 	end
