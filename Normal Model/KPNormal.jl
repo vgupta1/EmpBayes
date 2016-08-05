@@ -240,7 +240,7 @@ function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
 end
 
 #a heuristic based on ridge regression
-function q_ridge(cs, xs, ys, vs; max_iter = 8)
+function q_ridge(cs, xs, ys, vs; max_iter = 5, half=false)
     #compute the tau that minimizes the out-of-sample l2
     function deriv_f(tau0)
         rs = shrink(xs, vs, tau0)
@@ -258,13 +258,16 @@ function q_ridge(cs, xs, ys, vs; max_iter = 8)
         end
     end
     #if iteration limit reached, just return zeros
-    if iter == max_iter
-        return zeros(length(xs))
+    tau_ridge = 0.
+    if iter != max_iter
+        tau_ridge = fzero(deriv_f, 0, max_bnd)
     end
-
-    tau_ridge = fzero(deriv_f, 0, max_bnd)
     zs = .5 * (xs + ys)
-    q(cs, shrink(zs, vs, tau_ridge))
+    if half
+        return q(cs, shrink(zs, vs, tau_ridge/2)) 
+    else       
+        return q(cs, shrink(zs, vs, tau_ridge))
+    end
 end
 
 #helper function.  not to be exposed
@@ -338,19 +341,24 @@ function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max 
 end
 
 impulse(t, h) = abs(t) < .5h ? 1/h : 0.
-## approximate the dirac with an impulse of length h
-function approx_qprime(vs, tau, zs, lam, cs, h)
+box(t) = abs(t) <= .5 ? 1. : 0.
+const sqrt_2_pi = sqrt(2pi)
+gauss(t) = exp(-.5t^2)/ sqrt_2_pi
+
+## approximate the dirac with an Kernel
+function approx_qprime(vs, tau, zs, lam, cs, h, K)
     out = 0.
     const n = length(vs)
     for ix = 1:n
-        out += 1/(vs[ix] + tau)*impulse( vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix], h)
+#        out += 1/(vs[ix] + tau)*impulse( vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix], h)
+        out += 1/(vs[ix] + tau)* K(vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix]/h)/h
     end
     out / n
 end
 
 #Chooses tau via the stein formula using an exact calculation for the dirac
 #only approximations are lam(t,z) -> lam(t) and ULLN
-function stein_q_tau_impulse(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5.)
+function stein_q_tau_impulse(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5.)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(length(tau_grid))
     obj_best = -Inf
@@ -359,7 +367,7 @@ function stein_q_tau_impulse(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5
         qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        objs[ix] = dot(zs, qs)/length(vs) - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h)
+        objs[ix] = dot(zs, qs)/length(vs) - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]

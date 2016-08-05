@@ -183,10 +183,10 @@ type UniformExp
 	b
 end
 
-function UniformExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_tau=2)
+function UniformExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_vs=2)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
-	vs = 2. * avg_tau * rand(n_max)
+	vs = 2. * avg_vs * rand(n_max)
 	UniformExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), a, b)
 end
 
@@ -333,42 +333,33 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "ExactStein" yval thetaval t vals[indmax(objs)]])
 
-			#The impuse stein approach
-			#use the optimized rate, i.e. h_n = n^-1/6
+			#The stein approach with various kernels
+			#Box with the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ImpulseStein_6" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "Box" yval thetaval t vals[indmax(objs)]])
 
-
-			h = n^-.33333
+			#gauss with optimized rate n^-1/5
+			h = n^-.2
 			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ImpulseStein_3" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "Gauss" yval thetaval t vals[indmax(objs)]])
 
-			h = n^-.111111
+			#sinc with 1/log(n)
+			h = 1/log(n + 1)
 			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
 			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ImpulseStein_9" yval thetaval t vals[indmax(objs)]])
-
-			h = n^-.45
-			tic()
-			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, tau_step = .1)
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ImpulseStein_45" yval thetaval t vals[indmax(objs)]])
-
-
+			writecsv(f, [iRun n "Sinc" yval thetaval t vals[indmax(objs)]])
 
 
 			# #The primal stein approach
@@ -406,7 +397,15 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Ridge" yval thetaval t vals[indmax(objs)]])
 
-			#weighted l2 regularization  mu = .1
+			tic()
+			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
+			t = toc()
+			yval = dot(ys[1:n], qs)/n
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "RidgeHalf" yval thetaval t vals[indmax(objs)]])
+
+			#weighted l2 regularization.  From the gaussian case, it seems mu = 1 is sensible
+			#Do all of them for completeness
 			mu = .1
 			tic()
 			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
@@ -534,7 +533,51 @@ function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
 	return tag
 end
 
+
+#######
+# A by-hand test for bandwidths and reg parameters
+# o is assumed pre-initialized
+function test_bandwidth(file_out, numRuns, o)
+	const n = length(o.thetas)
+	xs = zeros(Float64, n)
+	ys = zeros(Float64, n)
+	zs = zeros(Float64, n)
+
+	f = open(file_out, "w")
+	writecsv(f, ["Run" "n" "Method" "bandwidth" "thetaVal" "tau0"])
+	bandwidths = linspace(-1, -.001, 30)
+	#regs = linspace(.05, 5, 15)
+
+	for iRun = 1:numRuns
+		sim!(o, xs, ys, zs)
+
+		for h in bandwidths
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs, zs, o.vs, n^h, KP.box, tau_step = .1)
+			thetaval = dot(o.thetas, qs)/n
+			writecsv(f, [iRun n "Box" h thetaval vals[indmax(objs)]])
+
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs, zs, o.vs, n^h, KP.gauss, tau_step = .1)
+			thetaval = dot(o.thetas, qs)/n
+			writecsv(f, [iRun n "Gauss" h thetaval vals[indmax(objs)]])
+
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs, zs, o.vs, n^h, sinc, tau_step = .1)
+			thetaval = dot(o.thetas, qs)/n
+			writecsv(f, [iRun n "Sinc" h thetaval vals[indmax(objs)]])
+		end
+
+		# for mu in regs
+		# 	qs = q_l2reg(o.cs, zs, o.vs, mu)[1]
+		# 	yval = dot(ys, qs)/n
+		# 	thetaval = dot(o.thetas, qs)/n
+		# 	writecsv(f, [iRun n "Regularization" mu thetaval 0.])
+		# end
+	end
+	close(f)
+end
+
 #########
+test_bandwidth("tempbandwidth", 10, NormalBayesExp(8675309, 3, 100, 0))
+
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
