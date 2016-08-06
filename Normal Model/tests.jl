@@ -2,11 +2,11 @@
 
 n_grid = [2^i for i = 8:18]
 
-tag = "gaussianExp"
+tag = "gaussianExp5"
 numRuns = 40
-a = @spawn test_Gaussian(tag, numRuns, n_grid, 8675309000, 3., 0.)
-b = @spawn test_Gaussian(tag, numRuns, n_grid, 5164174290, 3., 0.)
-c = @spawn test_Gaussian(tag, numRuns, n_grid, 5167462266, 3., 0.)
+a = @spawn test_Gaussian(tag, numRuns, n_grid, 8675309000, 3., 5.)
+b = @spawn test_Gaussian(tag, numRuns, n_grid, 5164174290, 3., 5.)
+c = @spawn test_Gaussian(tag, numRuns, n_grid, 5167462266, 3., 5.)
 
 ######
 file_a = fetch(a)
