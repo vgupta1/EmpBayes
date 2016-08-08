@@ -31,13 +31,14 @@ function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
 	srand(seed)
 	@assert rem(N, 2) == 0
 	cs = rand(n_max) * 2./frac_fit   
+
 	widths = rand(n_max) * width_max + .1
-	vs = 12N ./ widths.^2
+	vs = 12 ./ widths.^2
 	thetas = randn(n_max) ./ sqrt(tau0)
 
 	dists = Array(Distributions.Uniform, n_max)
 	for ix = 1:n_max
-		dists[ix] = Uniform(thetas[ix] - widths[ix]/2, thetas[ix] + widths[ix]/2)
+		dists[ix] = Uniform(-widths[ix]/2, widths[ix]/2)
 	end
 	CLTExp(cs, vs, thetas, dists, N)
 end
@@ -48,9 +49,9 @@ function sim!(o::CLTExp, xs, ys, zs)
 	const half_N = round(Int, o.N/2)
 	for ix = 1:n_max
 		rand!(o.dists[ix], zetas)
-		xs[ix] = mean(zetas[1:half_N])
-		ys[ix] = mean(zetas[(half_N + 1):o.N])
-		zs[ix] = mean(zetas)
+		xs[ix] = mean(zetas[1:half_N]) * sqrt(half_N) + o.thetas[ix]
+		ys[ix] = mean(zetas[(half_N + 1):o.N]) * sqrt(half_N) + o.thetas[ix]
+		zs[ix] = mean(zetas) * sqrt(N) + o.thetas[ix]
 	end
 end
 
@@ -576,8 +577,6 @@ function test_bandwidth(file_out, numRuns, o)
 end
 
 #########
-test_bandwidth("tempbandwidth", 10, NormalBayesExp(8675309, 3, 100, 0))
-
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
@@ -587,6 +586,7 @@ test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
 test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
 test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
 test_Beta("temp_Beta", 5, [100, 150], 87, .5, .5)
+test_bandwidth("tempbandwidth", 10, NormalBayesExp(8675309, 3, 100, 0))
 
 # #The counterexample
 # n_grid = [2^i for i = 8:20]
