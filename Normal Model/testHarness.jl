@@ -51,7 +51,7 @@ function sim!(o::CLTExp, xs, ys, zs)
 		rand!(o.dists[ix], zetas)
 		xs[ix] = mean(zetas[1:half_N]) * sqrt(half_N) + o.thetas[ix]
 		ys[ix] = mean(zetas[(half_N + 1):o.N]) * sqrt(half_N) + o.thetas[ix]
-		zs[ix] = mean(zetas) * sqrt(N) + o.thetas[ix]
+		zs[ix] = mean(zetas) * sqrt(o.N) + o.thetas[ix]
 	end
 end
 

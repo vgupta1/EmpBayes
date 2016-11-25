@@ -270,13 +270,35 @@ function q_ridge(cs, xs, ys, vs; max_iter = 5, half=false)
     end
 end
 
+## The Plug-in estimator 
+## using the SURE-optimal shrinkage for the means based on MSE
+function q_sure(cs, zs, vs)
+    f_deriv(tau) = dot(vs.*(zs.^2 * tau - 1) - tau, 1./(vs + tau).^3)
+
+    #bracket for ub
+    lb, ub = 0., 1.
+    iter = 1
+    MAX_ITER = 20
+    while f_deriv(ub) < 0 && iter < MAX_ITER
+        lb = ub
+        ub *= 2
+        iter += 1
+    end
+    @assert iter < MAX_ITER "max iterations reached"
+    tau_star = fzero(f_deriv, lb, ub)
+    rs = shrink(zs, vs, tau_star)
+
+    return q_dual(cs, rs)
+end
+
+
 #helper function.  not to be exposed
 #cs are unscaled (each element order unity)
 function qi_l2reg(lam, ci, ri, vi, mu)
     if ri/ci < lam 
-        return 0
+        return 0.
     elseif ri/ci > lam + mu/ci/vi
-        return 1
+        return 1.
     else
         return (ri - lam*ci)*vi/mu
     end
@@ -290,8 +312,8 @@ function q_l2reg(cs, rs, vs, mu)
     f(lam) = dot(cs, [qi_l2reg(lam, cs[ix], rs[ix], vs[ix], mu) for ix =1:n] )/n
 
     if f(0) < 1
-        println("All Items fit.")
-        return [qi_l2reg(lam, cs[ix], rs[ix], mu) for ix =1:n], 0.
+        println("Constraint non-binding")
+        return [qi_l2reg(0., cs[ix], rs[ix], mu) for ix =1:n], 0.
     else
         #bracket for ub
         lb, ub = 0., 1.
@@ -306,6 +328,35 @@ function q_l2reg(cs, rs, vs, mu)
         return [qi_l2reg(lamstar, cs[ix], rs[ix], vs[ix], mu) for ix =1:n], lamstar
     end
 end
+
+#oracle regularizer.  Mostly a test of policy class rather than estimator
+function q_l2reg_oracle(cs, rs, vs, thetas; mu_grid = nothing)
+    const n = length(rs)
+    #max possible value of mu...
+    if mu_grid == nothing
+        max_mu = sum(cs .* vs .* max(rs, 0))/n
+        max_mu = max(max_mu, maximum(rs .* vs)) 
+        mu_grid = linspace(0., max_mu, 200)
+    end
+
+    #an exhaustive search
+    best_val = -1.
+    best_qs = zeros(n)
+    q_t = zeros(n)
+    best_mu = -1;
+    for (ix, mu) in enumerate(mu_grid)
+        q_t[:] = q_l2reg(cs, rs, vs, mu)[1]
+        val_t = dot(thetas, q_t)/n
+        if val_t > best_val
+            best_val = val_t
+            best_mu = mu
+            best_qs[:] = q_t
+        end
+    end     
+    return best_mu, best_qs, best_val
+end
+
+
 
 ## the explicit evaluation of the dirac term with lambda approx in a stein expansion
 function exp_qprime(vs, tau, zs, lam, cs, thetas)

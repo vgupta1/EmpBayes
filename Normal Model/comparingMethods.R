@@ -1,64 +1,94 @@
 ###  analyzing the empirical bayes Knapsack stuff
-library(dplyr)
 library(ggplot2)
 library(reshape2)
+library(dplyr)
+
 
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
 
-##redone with new harness
-dat = read.csv("Results/testResults_Gamma_1_0.5_8675309.csv")
-dat = read.csv("Results/testResults_Gamma_1_2_8675309.csv")
-dat = read.csv("Results/testResults_Uniform_-1_1_8675309.csv")
-dat = read.csv("Results/testResults_Uniform_-3_3_8675309.csv")
-dat = read.csv("Results/testResults_Beta_0.5_0.5_8675309.csv")
+dat = read.csv("gaussianExp_3._0._parallel_results.csv")
+dat = read.csv("gaussianExp_0.0_3.0_8675309000.csv_parallel_results.csv")
+dat = read.csv("gaussianExp5_5.0_3.0_8675309000.csv_parallel_results.csv")
+dat = read.csv("oddEven_2.0_2.0_8675309000.csv_parallel_results.csv")
+dat = read.csv("CLT_CLTExp_50_2.0_5164174290.csv_parallel_results.csv")
+dat = read.csv("beta_Beta_5.0_2.0_8675309000.csv_parallel_results.csv")
+dat = read.csv("uniform_Uniform_1.0_2.0_8675309000.csv_parallel_results.csv")
+dat = read.csv("gamma_Gamma_1.0_2.0_8675309000.csv_parallel_results.csv")
 
-dat = read.csv("Results/test_gaussian_means_-3_2_8675309.csv")
-dat = read.csv("Results/test_gaussian_means_0_2_8675309.csv")
-dat = read.csv("temp_0_2_8675309.csv")
+##Ridge regression is unstable for some reason
+##for now throw away the bad ones.
+dat <- filter(dat, Method!="Ridge" | thetaVal > 1e-6)
 
+#########
+#Rescale the results so that we are looking at percentages
+dat.scale <- dcast(dat, Run + n ~ Method, value.var="thetaVal")
+dat.scale <- melt(dat.scale, id.vars = c("Run", "n", "OracleZ")) %>%
+    mutate( thetaVal = value / OracleZ) 
+names(dat.scale)[4] <- "Method"
+head(dat.scale)
 
-#limit yourself to interesting metohds
-method_bad = c("MLE", "FullInfo", "NaiveZ", "NaiveX", "OracleX", "Rescaled", "Rescaled_2.0", "Rescaled_4.0")
-
-##top level summary
-dat %>% group_by(Method) %>% filter(n>4000, ! Method %in% method_bad) %>%
-  summarise(avg=mean(thetaVal)) %>% arrange(desc(avg))
-
-filter(dat, n>65000, !Method %in% method_bad) %>%
-  group_by(Method) %>%
-  summarise(avg=mean(thetaVal), 
-            low=quantile(thetaVal,.05), 
-            high=quantile(thetaVal, .95)) %>%
-  arrange(desc(avg)) %>%
-  ggplot(aes(x=Method, y=avg, color=Method), data=.) + 
-  geom_errorbar(aes(ymin=low, ymax=high)) + 
-  geom_point() +
-  theme(legend.position="none")
-
+###
 #progression in n
+###
 pos = position_dodge(.2)
-dat %>%filter(n >2000) %>%
-  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
-                         "OracleX", "NaiveZ", "MM") ) %>%
-  group_by(n, Method) %>%
-  summarise(avg=mean(thetaVal), 
+dat.scale %>%
+#  filter(!Method %in% c("FullInfo", "OracleX", "NaiveX", "EmpBayesX", "Regularization_.01", "Regularization_.1", "MLE", "MM")) %>%
+  filter(Method %in% c("ExactStein", "Regularization_1","Ridge", "MLE", "NaiveZ")) %>%
+#  filter(Method %in% c("Ridge", "RidgeHalf", "MM")) %>%
+#  filter(Method %in% c("Box", "Gauss", "ExactStein", "Sinc", "Regularization_1", "Ridge", "MLE", "NaiveZ")) %>%
+  dplyr::group_by(n, Method) %>%
+  dplyr::summarise(avg=mean(thetaVal), 
             low=quantile(thetaVal,.05), 
             high=quantile(thetaVal, .95)) %>%
   ggplot(aes(x=n, y=avg, color=Method, group=Method), 
          data=., position=pos) + 
-  geom_point(aes(shape=Method), position=pos) +
+#  geom_point(aes(shape=Method), position=pos) +
+  geom_point(position=pos) +
   geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
+   geom_line(position=pos) +
   scale_x_log10() + 
+  theme_minimal(base_size=14) +
   theme(legend.title=element_blank())
-  
+
+
+
+
+
+## generate the pdf plots
+filter(dat, Method == "Gauss") %>%
+  ggplot(aes(x=thetaVal, group=factor(n), fill=factor(n))) + 
+  geom_density(linetype="blank", alpha = .5) + 
+  theme_minimal()
+
+ggplot()
+
+
+
+#Study how many observations you need for a uniform before a CLT kicks in
+
+
+
+
+
+
+
+#####
+##
+filter(dat, Method %in% c("OracleZ", "ExactStein", "ImpulseStein", "Rescaled")) %>%
+  group_by(n, Method) %>%
+  summarize(avg = mean(thetaVal))
+
+filter(dat, n == 131072) %>%
+  dcast(Run ~ Method, value.var="thetaVal") %>%
+  ggplot(aes(x=ImpulseStein, y=ExactStein), data=.) + geom_point() + 
+  geom_abline()
+
+
 ##Convergence of taus?
 dat %>% 
-  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
-                         "OracleX", "NaiveZ", "MM") ) %>%
-  filter(! Method %in% c("Rescaled_0.125", "Rescaled_0.25")) %>%
-  filter(n < 1e3) %>%
+  filter(Method %in% c("Bayes", "ExactStein", "ImpulseStein_3", "ImpulseStein_45", "ImpulseStein_6", "ImpulseStein_9")) %>%
   ggplot(aes(x=n, y=tau0, color=Method, group=Method), data=.) + 
-  geom_smooth(se=FALSE) +
+  geom_smooth() +
   scale_x_log10()  + 
   theme_bw()
 
@@ -80,7 +110,8 @@ dat.small %>%
   summarise( mindiff= min(Diff), 
              maxdiff=max(Diff), 
              indx = which(Diff == min(Diff)), 
-             maxerr = max(err))
+             maxerr = max(err), 
+             avgerr = mean(err))
 
 dat.small %>% filter(n == 512) %>%
   dcast(Run ~ Method, value.var = "thetaVal") %>% 
