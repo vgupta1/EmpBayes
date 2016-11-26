@@ -3,7 +3,7 @@ using Distributions
 using Roots
 
 export q, best_q_tau, q_MM, q_MLE, 
-      ideal_val, q_dual, lam, shrink, q_ridge, q_l2reg, 
+      ideal_val, q_dual, lam, shrink, q_CVShrink, q_l2reg, 
       q_l2reg_oracle, q_sure
 
 shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
@@ -241,9 +241,8 @@ function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
 	qalg 
 end
 
-#a heuristic based on ridge regression
-function q_ridge(cs, xs, ys, vs; max_iter = 5, half=false)
-    #compute the tau that minimizes the out-of-sample l2
+#a shrinkage heuristic that minimizes the out-of-sample MSE
+function q_CVShrink(cs, xs, ys, vs; max_iter = 5, half=false)   
     function deriv_f(tau0)
         rs = shrink(xs, vs, tau0)
         mean((ys - rs) .* rs./(vs + tau0))
@@ -260,15 +259,16 @@ function q_ridge(cs, xs, ys, vs; max_iter = 5, half=false)
         end
     end
     #if iteration limit reached, just return zeros
-    tau_ridge = 0.
+    tau_star = 0.
     if iter != max_iter
-        tau_ridge = fzero(deriv_f, 0, max_bnd)
+        tau_star = fzero(deriv_f, 0, max_bnd)
     end
     zs = .5 * (xs + ys)
+    #This return value is throwing away the dual value.  
     if half
-        return q(cs, shrink(zs, vs, tau_ridge/2)) 
+        return q(cs, shrink(zs, vs, tau_star/2)), tau_star/2 
     else       
-        return q(cs, shrink(zs, vs, tau_ridge))
+        return q(cs, shrink(zs, vs, tau_star)), tau_star
     end
 end
 

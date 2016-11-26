@@ -335,16 +335,16 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Shrinkage via Cross-Val ("Ridge")
 			tic()
-			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
+			qs, tau_CV = q_CVShrink(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "CV_Shrink" thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "CV_Shrink" thetaval t tau_CV])
 
 			tic()
-			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
+			qs, tau_CV = q_CVShrink(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "CV_Shrink2" thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "CV_Shrink2" thetaval t tau_CV])
 
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
@@ -376,7 +376,7 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			if abs(thetaval - maximum(objs)) > 1e-5
-				f2 = open("Mismatch_log.csv")
+				f2 = open("Mismatch_log.csv", "w")
 				writecsv(f2, [n iRun])
 				writecsv(f2, xs')
 				writecsv(f2, ys')
