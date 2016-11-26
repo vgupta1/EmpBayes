@@ -6,15 +6,6 @@ library(dplyr)
 
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
 
-dat = read.csv("gaussianExp_3._0._parallel_results.csv")
-dat = read.csv("gaussianExp_0.0_3.0_8675309000.csv_parallel_results.csv")
-dat = read.csv("gaussianExp5_5.0_3.0_8675309000.csv_parallel_results.csv")
-dat = read.csv("oddEven_2.0_2.0_8675309000.csv_parallel_results.csv")
-dat = read.csv("CLT_CLTExp_50_2.0_5164174290.csv_parallel_results.csv")
-dat = read.csv("beta_Beta_5.0_2.0_8675309000.csv_parallel_results.csv")
-dat = read.csv("uniform_Uniform_1.0_2.0_8675309000.csv_parallel_results.csv")
-dat = read.csv("gamma_Gamma_1.0_2.0_8675309000.csv_parallel_results.csv")
-
 ##Ridge regression is unstable for some reason
 ##for now throw away the bad ones.
 dat <- filter(dat, Method!="Ridge" | thetaVal > 1e-6)

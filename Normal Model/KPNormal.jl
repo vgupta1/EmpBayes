@@ -2,7 +2,9 @@ module KP
 using Distributions
 using Roots
 
-export q, best_q_tau, q_MM, q_MLE, ideal_val, q_dual, lam, shrink, q_ridge, q_l2reg
+export q, best_q_tau, q_MM, q_MLE, 
+      ideal_val, q_dual, lam, shrink, q_ridge, q_l2reg, 
+      q_l2reg_oracle, q_sure
 
 shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
 
@@ -87,7 +89,7 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
 	objs = Float64[]
 
 	#first determine tau0 = 0 solution
-	qs = zeros(Float64, n)
+	qs = zeros(n)
 	total_weight = 0.
 	frac_indx = -1
     for ix = 1:n
@@ -288,7 +290,7 @@ function q_sure(cs, zs, vs)
     tau_star = fzero(f_deriv, lb, ub)
     rs = shrink(zs, vs, tau_star)
 
-    return q_dual(cs, rs)
+    return q_dual(cs, rs)[1], tau_star
 end
 
 
@@ -313,7 +315,7 @@ function q_l2reg(cs, rs, vs, mu)
 
     if f(0) < 1
         println("Constraint non-binding")
-        return [qi_l2reg(0., cs[ix], rs[ix], mu) for ix =1:n], 0.
+        return [qi_l2reg(0., cs[ix], rs[ix], vs[ix], mu) for ix =1:n], 0.
     else
         #bracket for ub
         lb, ub = 0., 1.
@@ -353,7 +355,7 @@ function q_l2reg_oracle(cs, rs, vs, thetas; mu_grid = nothing)
             best_qs[:] = q_t
         end
     end     
-    return best_mu, best_qs, best_val
+    return best_qs, best_mu, best_val
 end
 
 

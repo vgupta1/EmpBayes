@@ -1,12 +1,14 @@
 ## A small driver file to run the tests in parallel and combine them
+#run like this
+#julia -p 3 -L testHarness.jl tests.jl
 
-n_grid = [2^i for i = 8:18]
+n_grid = [2^i for i = 7:17]
 
-tag = "oddEven"
-numRuns = 40
-a = @spawn test_OddEven(tag, numRuns, n_grid, 8675309000, 2., 2.)
-b = @spawn test_OddEven(tag, numRuns, n_grid, 5164174290, 2., 2.)
-c = @spawn test_OddEven(tag, numRuns, n_grid, 5167462266, 2., 2.)
+tic()
+numRuns = 50
+a = @spawn test_Gaussian("gaussian", numRuns, n_grid, 8675309000, 2., 0., 2.)
+b = @spawn test_Gaussian("gaussian", numRuns, n_grid, 5164174290, 2., 0., 2.)
+c = @spawn test_Gaussian("gaussian", numRuns, n_grid, 5167462266, 2., 0., 2.)
 
 ######
 file_a = fetch(a)
@@ -28,7 +30,11 @@ data_t = readcsv(file_c, skipstart=1)
 data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
-f = open("$(file_a)_parallel_results.csv", "w")
+#strip the name of file_a to make the numbers better
+indx= rsearch(file_a, "_")[1]
+f = open("$(file_a[1:indx])_parallel_results.csv", "w")
 writecsv(f, header)
 writecsv(f, data)
 close(f)
+
+println("Num Paths: \t $(numRuns) \t Time:", toc() )

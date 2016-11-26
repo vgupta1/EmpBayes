@@ -111,11 +111,11 @@ type NormalBayesExp
 	mu0
 end
 
-function NormalBayesExp(seed::Integer, tau0, n_max, mu0, frac_fit=.1, avg_tau=4.)
+function NormalBayesExp(seed::Integer, tau0, n_max; mu0 = 0., frac_fit=.1, avg_tau=tau0)
 	srand(seed)
 	cs = rand(n_max) * 2./frac_fit   
 	vs = 2. * avg_tau * rand(n_max)
-	NormalBayesExp(cs, vs, zeros(Float64, n_max), zeros(Float64, n_max), tau0, mu0)
+	NormalBayesExp(cs, vs, zeros(n_max), zeros(n_max), tau0, mu0)
 end
 
 #cs vs remain fixed
@@ -226,8 +226,7 @@ end
 ######################
 ####
 #For increasing n, many simulations compare
-#		#Naive x method
-#		#Naive z method
+#		#SAA/ Naive Z
 #		#FullInfo Zstar
 #		#Our method X
 #		#Our method Avg X Y
@@ -244,95 +243,70 @@ function test_harness(f, numRuns, o, n_grid)
 	ys = zeros(Float64, n_max)
 	zs = zeros(Float64, n_max)
 
+	#write a header
+	writecsv(f, ["Run" "n" "Method" "thetaVal" "time" "tau0"])
+
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
 		sim!(o, xs, ys, zs)
 
 		for n in n_grid
 			#Compute performance of each method
-			#Naive x
-			tic()
-			qs = q(o.cs[1:n], xs[1:n])
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "NaiveX" yval thetaval t 0.])
 
 			#Naive Z
-			#Same as the ZZ method
+			#Same as the ZZ/SAA
 			tic()
 			qs = q(o.cs[1:n], zs[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "NaiveZ" yval thetaval t 0.])
+			writecsv(f, [iRun n "SAA" thetaval t 0.])
 
 			#fullInfo val
 			tic()
 			qs = q(o.cs[1:n], o.thetas[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "FullInfo" yval thetaval t 0.])
+			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
 
 			#The "Bayes" value.. only possible bc we if we we are in bayesian
 			if :tau0 in fieldnames(o)
 				tic()
 				qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], o.tau0))
 				t = toc()
-				yval = dot(ys[1:n], qs)/n
 				thetaval = dot(o.thetas[1:n], qs)/n
-				writecsv(f, [iRun n "Bayes" yval thetaval t o.tau0])
+				writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
 			end
 
 			#Tau MLE
 			tic()
 			tauMLE, qs = q_MLE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "MLE" yval thetaval t tauMLE])
+			writecsv(f, [iRun n "MLE" thetaval t tauMLE])
 
 			#Tau MM
 			tic()
 			tauMM, qs = q_MM(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "MM" yval thetaval t tauMM])
+			writecsv(f, [iRun n "MM" thetaval t tauMM])
 
-			#Our sample split method x
+			#The half-sample heuristic
 			tic()
 			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "EmpBayesX" yval thetaval t vals[indmax(objs)]])
-
-			#rescaling the sample_split method
+			
 			tau_RS = vals[indmax(objs)]/2
 			qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Rescaled" yval thetaval t tau_RS])
-
-			# #Some rescalings by wrong factors
-			# for i = -3:3
-			# 	i == -1 && continue  #already computed the rescaled value
-			# 	tau_RS = vals[indmax(objs)]/ 2.0^i
-			# 	qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
-			# 	yval = dot(ys[1:n], qs)/n
-			# 	thetaval = dot(o.thetas[1:n], qs)/n
-			# 	writecsv(f, [iRun n "Rescaled_$(round(2.0^i, 3))" yval thetaval t tau_RS])
-			# end
+			writecsv(f, [iRun n "Rescaled" thetaval t tau_RS])
 
 			#The idealized stein approach
 			tic()
 			qs, vals, objs = KP.stein_q_tau_exact(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ExactStein" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "ExactStein" thetaval t vals[indmax(objs)]])
 
 			#The stein approach with various kernels
 			#Box with the optimized rate, i.e. h_n = n^-1/6
@@ -340,28 +314,51 @@ function test_harness(f, numRuns, o, n_grid)
 			tic()
 			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05)
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Box" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "Box" thetaval t vals[indmax(objs)]])
 
 			#gauss with optimized rate n^-1/5
 			h = n^-.2
 			tic()
 			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05)
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Gauss" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "Gauss" thetaval t vals[indmax(objs)]])
 
 			#sinc with 1/log(n)
 			h = 1/log(n + 1)
 			tic()
 			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Sinc" yval thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun n "Sinc" thetaval t vals[indmax(objs)]])
 
+			#Shrinkage via Cross-Val ("Ridge")
+			tic()
+			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "CV_Shrink" thetaval t vals[indmax(objs)]])
+
+			tic()
+			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "CV_Shrink2" thetaval t vals[indmax(objs)]])
+
+			#weighted l2 regularization.  uses the oracle value for now
+			tic()
+			qs, mu = q_l2reg_oracle(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "OracleReg" thetaval t mu])
+
+			#Plug-in SURE estimation
+			tic()
+			qs, tau = q_sure(o.cs[1:n], zs[1:n], o.vs[1:n])
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "SURE" thetaval t tau])
 
 			# #The primal stein approach
 			# #use the optimized rate, i.e. h_n = n^-1/6
@@ -373,63 +370,26 @@ function test_harness(f, numRuns, o, n_grid)
 			# thetaval = dot(o.thetas[1:n], qs)/n
 			# writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
 
-			#Oracle X method
-			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], o.thetas[1:n])
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "OracleX" yval thetaval t vals[indmax(objs)]])
-
-			#Oracle Z method
+			#Oracle Value
 			tic()
 			qs, vals, objs = best_q_tau(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
-			yval = dot(ys[1:n], qs)/n
 			thetaval = dot(o.thetas[1:n], qs)/n
-			@assert abs(thetaval - maximum(objs)) <= 1e-4 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
-			writecsv(f, [iRun n "OracleZ" yval thetaval t vals[indmax(objs)]])
+			if abs(thetaval - maximum(objs)) > 1e-5
+				f2 = open("Mismatch_log.csv")
+				writecsv(f2, [n iRun])
+				writecsv(f2, xs')
+				writecsv(f2, ys')
+				writecsv(f2, zs')
+				writecsv(f2, o.vs[1:n]')
+				writecsv(f2, o.thetas[1:n]')
+				writecsv(f2, o.cs[1:n]')
+				close(f2)
+				exit()
+			end
 
-			#Ridge Proxy
-			tic()
-			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Ridge" yval thetaval t vals[indmax(objs)]])
-
-			tic()
-			qs = q_ridge(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "RidgeHalf" yval thetaval t vals[indmax(objs)]])
-
-			#weighted l2 regularization.  From the gaussian case, it seems mu = 1 is sensible
-			#Do all of them for completeness
-			mu = .1
-			tic()
-			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Regularization_.1" yval thetaval t vals[indmax(objs)]])
-
-			mu = 1
-			tic()
-			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Regularization_1" yval thetaval t vals[indmax(objs)]])
-
-			mu = .01
-			tic()
-			qs = q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1]
-			t = toc()
-			yval = dot(ys[1:n], qs)/n
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Regularization_.01" yval thetaval t vals[indmax(objs)]])
+#			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
+			writecsv(f, [iRun n "OracleZ" thetaval t vals[indmax(objs)]])
 
 		end
 		flush(f)
@@ -437,34 +397,19 @@ function test_harness(f, numRuns, o, n_grid)
 end
 
 #######################
-### The usual bayesian normal setup
-### costs and vs are random, but fixed over runs
-function test_Gaussian(file_out, numRuns, n_grid, seed, tau0)
-	#build the sim object
-	o = NormalBayesExp(seed, tau0, maximum(n_grid), 0)
-
-	#run the testharness
-	#output files
-	f = open("$(file_out)_$(tau0)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
-	test_harness(f, numRuns, o, n_grid)
-	close(f)
-	return "$(file_out)_$(tau0)_$(seed).csv"
-end
 
 ### Bayesian set-up with a non-zero mean
 ### costs and vs are random, but fixed over runs
-function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0)
+function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0, avg_tau)
 	#build the sim object
-	o = NormalBayesExp(seed, tau0, maximum(n_grid), mu0)
+	o = NormalBayesExp(seed, tau0, maximum(n_grid), mu0=mu0, avg_tau=avg_tau)
 
 	#run the testharness
 	#output files
-	f = open("$(file_out)_$(mu0)_$(tau0)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
+	f = open("$(file_out)_$(tau0)_$(mu0)_$(avg_tau)_$(seed).csv", "w")
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
-	return "$(file_out)_$(mu0)_$(tau0)_$(seed).csv"
+	return "$(file_out)_$(tau0)_$(mu0)_$(avg_tau)_$(seed).csv"
 end
 
 ### The odd even set-up.  
@@ -475,7 +420,6 @@ function test_OddEven(file_out, numRuns, n_grid, seed, odd_theta, odd_tau)
 	#run the testharness
 	#output files
 	f = open("$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return "$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv"
@@ -486,7 +430,6 @@ function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
 	o = GammaExp(seed, alpha, beta, maximum(n_grid))
 
 	f = open("$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return "$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv"
@@ -497,7 +440,6 @@ function test_Uniform(file_out, numRuns, n_grid, seed, a, b)
 	o = UniformExp(seed, a, b, maximum(n_grid))
 
 	f = open("$(file_out)_Uniform_$(a)_$(b)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return "$(file_out)_Uniform_$(a)_$(b)_$(seed).csv"
@@ -508,7 +450,6 @@ function test_Beta(file_out, numRuns, n_grid, seed, a, b)
 	o = BetaExp(seed, a, b, maximum(n_grid))
 
 	f = open("$(file_out)_Beta_$(a)_$(b)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return "$(file_out)_Beta_$(a)_$(b)_$(seed).csv"
@@ -518,7 +459,6 @@ end
 function test_UniformLikelihood(numRuns, n_grid, seed, theta_high, width_low, width_high, lamp)
 	o = UniformLikelihoodExp(seed, theta_high, 1., width_high, width_low, maximum(n_grid), lamp)
 	f = open("UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv", "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return "UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv"
@@ -528,7 +468,6 @@ function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
 	o = CLTExp(seed, width_max, maximum(n_grid), N)
 	tag = "$(file_out)_CLTExp_$(N)_$(width_max)_$(seed).csv"
 	f = open(tag, "w")
-	writecsv(f, ["Run" "n" "Method" "YVal" "thetaVal" "time" "tau0"])
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return tag
@@ -565,13 +504,6 @@ function test_bandwidth(file_out, numRuns, o)
 			thetaval = dot(o.thetas, qs)/n
 			writecsv(f, [iRun n "Sinc" h thetaval vals[indmax(objs)]])
 		end
-
-		# for mu in regs
-		# 	qs = q_l2reg(o.cs, zs, o.vs, mu)[1]
-		# 	yval = dot(ys, qs)/n
-		# 	thetaval = dot(o.thetas, qs)/n
-		# 	writecsv(f, [iRun n "Regularization" mu thetaval 0.])
-		# end
 	end
 	close(f)
 end
@@ -580,15 +512,15 @@ end
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
-test_CLTExp("tempCLT", 5, [100, 150], 86, 10, 2)
-test_Gaussian("temp_Gaussian2", 5, [100, 150], 87, 3, 5)
-test_OddEven("temp_OddEven", 5,[100, 150], 87, 2, 2)
-test_Gamma("temp_Gamma", 5, [100, 150], 87, 1., 1.)
-test_Uniform("temp_Uniform", 5, [100, 150], 87, 1, 2)
-test_Beta("temp_Beta", 5, [100, 150], 87, .5, .5)
-test_bandwidth("tempbandwidth", 10, NormalBayesExp(8675309, 3, 100, 0))
+test_CLTExp("./temp/tempCLT", 5, [100, 150], 86, 10, 2)
+test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
+test_OddEven("./temp/temp_OddEven", 5,[100, 150], 87, 2, 2)
+test_Gamma("./temp/temp_Gamma", 5, [100, 150], 87, 1., 1.)
+test_Uniform("./temp/temp_Uniform", 5, [100, 150], 87, 1, 2)
+test_Beta("./temp/temp_Beta", 5, [100, 150], 87, .5, .5)
+test_bandwidth("./temp/tempbandwidth", 10, NormalBayesExp(8675309, 3, 100))
+
 
 # #The counterexample
 # n_grid = [2^i for i = 8:20]
 # test_UniformLikelihood(2, [100, 150], 8675309, 10., 15., 1., 14.1)
-
