@@ -3,43 +3,84 @@ library(ggplot2)
 library(reshape2)
 library(dplyr)
 
-
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
+
+dat = read.csv("oddEven_0.01_0.01_8675309.csv")
 
 ##Ridge regression is unstable for some reason
 ##for now throw away the bad ones.
-dat <- filter(dat, Method!="Ridge" | thetaVal > 1e-6)
+#dat <- filter(dat, Method!="Ridge" | thetaVal > 1e-6)
 
 #########
 #Rescale the results so that we are looking at percentages
 dat.scale <- dcast(dat, Run + n ~ Method, value.var="thetaVal")
-dat.scale <- melt(dat.scale, id.vars = c("Run", "n", "OracleZ")) %>%
-    mutate( thetaVal = value / OracleZ) 
-names(dat.scale)[4] <- "Method"
+dat.scale <- melt(dat.scale, id.vars = c("Run", "n", "OracleZ"), 
+                              variable.name="Method", 
+                              value.name = "thetaVal") %>%
+    mutate( relPerf = thetaVal / OracleZ) 
 head(dat.scale)
 
 ###
-#progression in n
+#progression in n for
 ###
 pos = position_dodge(.2)
+methods = c("SAA", "MLE", "CV_Shrink", "Rescaled", "CV_Shrink2", "MM", "ExactStein")
+
 dat.scale %>%
-#  filter(!Method %in% c("FullInfo", "OracleX", "NaiveX", "EmpBayesX", "Regularization_.01", "Regularization_.1", "MLE", "MM")) %>%
-  filter(Method %in% c("ExactStein", "Regularization_1","Ridge", "MLE", "NaiveZ")) %>%
-#  filter(Method %in% c("Ridge", "RidgeHalf", "MM")) %>%
-#  filter(Method %in% c("Box", "Gauss", "ExactStein", "Sinc", "Regularization_1", "Ridge", "MLE", "NaiveZ")) %>%
+  filter(Method %in% methods) %>%
   dplyr::group_by(n, Method) %>%
-  dplyr::summarise(avg=mean(thetaVal), 
-            low=quantile(thetaVal,.05), 
-            high=quantile(thetaVal, .95)) %>%
+  dplyr::summarise(avg=mean(relPerf), 
+            low=quantile(relPerf,.05), 
+            high=quantile(relPerf, .95)) %>%
   ggplot(aes(x=n, y=avg, color=Method, group=Method), 
          data=., position=pos) + 
-#  geom_point(aes(shape=Method), position=pos) +
-  geom_point(position=pos) +
-  geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
+  #geom_point(position=pos) +
+  #geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
    geom_line(position=pos) +
   scale_x_log10() + 
   theme_minimal(base_size=14) +
   theme(legend.title=element_blank())
+
+
+####
+# Notes on the oddEven CAse with tau_odd = .01 : oddEven_0.01_0.01_8675309.csv
+####
+# MLE does essentially perfectly...  How can we fool it better?
+# Both CV and CV_shrink2 do very well.  (CV_shrink does better).
+#   Consider droping CV_Shrink2
+#   We expected them to undershrink.  Check the values. 
+
+
+####
+#Studying Tau Convergence
+####
+dat.tau <- dcast(dat, Run + n ~ Method, value.var="tau0")
+dat.tau <- melt(dat.tau, id.vars = c("Run", "n"), 
+                  variable.name="Method", 
+                  value.name = "tau0")  
+head(dat.tau)
+
+
+methods = c("Rescaled", "MLE", "ExactStein", "CV_Shrink", "CV_Shrink2")
+dat.tau %>%
+  filter(Method %in% methods) %>%
+  dplyr::group_by(n, Method) %>%
+  dplyr::summarise(avg=mean(tau0), 
+                   low=quantile(tau0,.05), 
+                   high=quantile(tau0, .95)) %>%
+  filter(Method %in% c("CV_Shrink", "CV_Shrink2")) %>%
+  head()
+  
+  
+  ggplot(aes(x=n, y=avg, color=Method, group=Method), 
+         data=., position=pos) + 
+  #geom_point(position=pos) +
+  #geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
+  geom_line(position=pos) +
+  scale_x_log10() + 
+  theme_minimal(base_size=14) +
+  theme(legend.title=element_blank())
+
 
 
 

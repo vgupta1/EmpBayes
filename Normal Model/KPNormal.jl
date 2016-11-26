@@ -188,8 +188,8 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     end
 
     ##assume that solving one last time is short relative to costs
-    ##have to unscale cs for this to work
-    max_qs = q(cs_unscaled, shrink(xs, vs, max_tau0+TOL))
+    indmax = findfirst(vals .>= max_tau0)
+    max_qs = q(cs_unscaled, shrink(xs, vs, .5*max_tau0 + .5*vals[indmax + 1]))
 
     return max_qs, vals, objs 
 end
