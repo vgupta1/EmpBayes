@@ -246,7 +246,7 @@ function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
 end
 
 #a shrinkage heuristic that minimizes the out-of-sample MSE
-function q_CVShrink(cs, xs, ys, vs; max_iter = 5, half=false)   
+function q_CVShrink(cs, xs, ys, vs; max_iter = 5)   
     function deriv_f(tau0)
         rs = shrink(xs, vs, tau0)
         mean((ys - rs) .* rs./(vs + tau0))
@@ -268,12 +268,7 @@ function q_CVShrink(cs, xs, ys, vs; max_iter = 5, half=false)
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
     zs = .5 * (xs + ys)
-    #This return value is throwing away the dual value.  
-    if half
-        return q(cs, shrink(zs, vs, tau_star/2)), tau_star/2 
-    else       
-        return q(cs, shrink(zs, vs, tau_star)), tau_star
-    end
+    return q(cs, shrink(zs, vs, tau_star)), tau_star
 end
 
 ## The Plug-in estimator 
@@ -374,7 +369,7 @@ function exp_qprime(vs, tau, zs, lam, cs, thetas)
     out/n
 end
 
-#Chooses tau via the stein formula using an exact calculation for the dirac
+#Stein approach using an exact calculation for the dirac
 #only approximations are lam(t,z) -> lam(t) and ULLN
 function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max = 5.)
     const n = length(vs)
@@ -407,24 +402,23 @@ function approx_qprime(vs, tau, zs, lam, cs, h, K)
     out = 0.
     const n = length(vs)
     for ix = 1:n
-#        out += 1/(vs[ix] + tau)*impulse( vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix], h)
-        out += 1/(vs[ix] + tau)* K(vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix]/h)/h
+        out += 1/(vs[ix] + tau)* K((vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix])/h)/h
     end
     out / n
 end
 
-#Chooses tau via the stein formula using an exact calculation for the dirac
-#only approximations are lam(t,z) -> lam(t) and ULLN
+#Stein formula using an kernel approximation for the dirac
 function stein_q_tau_impulse(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5.)
+    const n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
-    objs = zeros(length(tau_grid))
+    objs = zeros(tau_grid)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
         qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        objs[ix] = dot(zs, qs)/length(vs) - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K)
+        objs[ix] = dot(zs, qs)/n - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
