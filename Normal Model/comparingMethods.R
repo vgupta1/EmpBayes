@@ -5,11 +5,12 @@ library(dplyr)
 
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
 
+dat = read.csv("gaussian_2.0_0.0_2.0__parallel_results.csv")
 dat = read.csv("oddEven_0.01_0.01_8675309.csv")
 
-##Ridge regression is unstable for some reason
-##for now throw away the bad ones.
-#dat <- filter(dat, Method!="Ridge" | thetaVal > 1e-6)
+##Check the stability of the CV Estimators 
+dat %>% filter(Method %in% c("CV_Shrink", "CV_Shrink2")) %>% 
+  group_by(n, Method) %>% summarise(mean(tau0 < 1e-6))
 
 #########
 #Rescale the results so that we are looking at percentages

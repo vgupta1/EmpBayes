@@ -14,8 +14,45 @@ end
 #Leaves cs, thetas and vs fixed in o
 sim!(o, x, y, z) = simData!(o, x, y, z)
 
+#Default experiments fix a single theta, cs, vs across all simulation
+type DefaultExp
+	cs
+	thetas
+	vs
+	noise
+end
+
+#cs and vs fixed across all runs
+function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=.1)
+	srand(seed)
+	cs = 1./frac_fit * ones(n_max)
+
+	thetas = ones(n_max)
+	thetas[1:2:n_max] = odd_theta
+	vs = ones(n_max)
+	vs[1:2:n_max] = odd_tau
+
+	noise = zeros(n_max)
+	DefaultExp(cs, thetas, vs, noise)
+end
+
+function threePartExp(seed::Integer, n_max::Integer, theta_l, v_l, theta_h, v_h, frac_fit = .1)
+	srand(seed)
+	cs = 1./frac_fit * ones(n_max)
+	thetas = ones(n_max)
+	vs = ones(n_max)
+	thetas[1:3:n_max] = theta_l
+	vs[1:3:n_max] = v_l
+	thetas[3:3:n_max] = theta_h
+	vs[3:3:n_max] = v_h
+
+	noise = zeros(n_max)
+	DefaultExp(cs, thetas, vs, noise)
+end
+
 #Following simulates N rvs according to the given distributions
 #AS N increases, this should approximately have gaussian likelihood
+#dists should be mean zero.
 type CLTExp
 	cs
 	vs
@@ -24,9 +61,9 @@ type CLTExp
 	N
 end
 
-#thetas are generated as gaussian
+#thetas are initially generated as gaussians
 #widths are randomly genrated between [0, width_max]
-#intervals are centered on thetas
+#Likelihoods are uniform, centered on theta with width
 function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
 	srand(seed)
 	@assert rem(N, 2) == 0
@@ -118,7 +155,7 @@ function NormalBayesExp(seed::Integer, tau0, n_max; mu0 = 0., frac_fit=.1, avg_t
 	NormalBayesExp(cs, vs, zeros(n_max), zeros(n_max), tau0, mu0)
 end
 
-#cs vs remain fixed
+#cs vs remain fixed but thetas change
 function sim!(o::NormalBayesExp, x, y, z)
 	randn!(o.thetas) 
 	o.thetas /= sqrt(o.tau0)
@@ -126,26 +163,6 @@ function sim!(o::NormalBayesExp, x, y, z)
 	simData!(o, x, y, z)
 end
 
-type OddEvenExp
-	cs
-	thetas
-	vs
-	noise
-end
-
-#cs and vs fixed across all runs
-function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=.1)
-	srand(seed)
-	cs = 1./frac_fit * ones(Float64, n_max)
-
-	thetas = ones(Float64, n_max)
-	thetas[1:2:n_max] = odd_theta
-	vs = ones(Float64, n_max)
-	vs[1:2:n_max] = odd_tau
-
-	noise = zeros(Float64, n_max)
-	OddEvenExp(cs, thetas, vs, noise)
-end
 
 #cs and vs fixed across all runs
 #thetas drawn as gamma(alpha, beta)
@@ -425,6 +442,15 @@ function test_OddEven(file_out, numRuns, n_grid, seed, odd_theta, odd_tau)
 	return "$(file_out)_$(odd_theta)_$(odd_tau)_$(seed).csv"
 end
 
+### The three parts experimental set-up
+function test_threePart(file_out, numRuns, n_grid, seed, theta_l, v_l, theta_h, v_h)
+	o = threePartExp(seed, maximum(n_grid), theta_l, v_l, theta_h, v_h)
+	f = open("$(file_out)_$(theta_l)_$(v_l)_$(theta_h)_$(v_h)_$(seed).csv", "w")
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return "$(file_out)_$(theta_l)_$(v_l)_$(theta_h)_$(v_h)_$(seed).csv"
+end
+
 ### The Gamma Test
 function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
 	o = GammaExp(seed, alpha, beta, maximum(n_grid))
@@ -512,6 +538,7 @@ end
 n_grid = [2^i for i = 8:17]
 
 #run some small examples to pre-compile for optimization
+test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)
 test_CLTExp("./temp/tempCLT", 5, [100, 150], 86, 10, 2)
 test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
 test_OddEven("./temp/temp_OddEven", 5,[100, 150], 87, 2, 2)
@@ -519,6 +546,7 @@ test_Gamma("./temp/temp_Gamma", 5, [100, 150], 87, 1., 1.)
 test_Uniform("./temp/temp_Uniform", 5, [100, 150], 87, 1, 2)
 test_Beta("./temp/temp_Beta", 5, [100, 150], 87, .5, .5)
 test_bandwidth("./temp/tempbandwidth", 10, NormalBayesExp(8675309, 3, 100))
+
 
 
 # #The counterexample
