@@ -357,12 +357,6 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "CV_Shrink" thetaval t tau_CV])
 
-			tic()
-			qs, tau_CV = q_CVShrink(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n], half=true)
-			t = toc()
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "CV_Shrink2" thetaval t tau_CV])
-
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
 			qs, mu = q_l2reg_oracle(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
@@ -370,7 +364,7 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "OracleReg" thetaval t mu])
 
-			#Plug-in SURE estimation
+			#Plug-in SURE estimation for L2
 			tic()
 			qs, tau = q_sure(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
