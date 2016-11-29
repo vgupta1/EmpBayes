@@ -334,6 +334,14 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Box" thetaval t vals[indmax(objs)]])
 
+			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling
+			h = n^-.16666
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05, scale_h=true)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "BoxS" thetaval t vals[indmax(objs)]])
+
 			#gauss with optimized rate n^-1/5
 			h = n^-.2
 			tic()
@@ -342,6 +350,14 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Gauss" thetaval t vals[indmax(objs)]])
 
+			#gauss with optimized rate n^-1/5 with scaling
+			h = n^-.2
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05, scale_h = true)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "GaussS" thetaval t vals[indmax(objs)]])
+
 			#sinc with 1/log(n)
 			h = 1/log(n + 1)
 			tic()
@@ -349,6 +365,14 @@ function test_harness(f, numRuns, o, n_grid)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Sinc" thetaval t vals[indmax(objs)]])
+
+			#sinc with 1/log(n) with scaling
+			h = 1/log(n + 1)
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1, scale_h=true)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "SincS" thetaval t vals[indmax(objs)]])
 
 			#Shrinkage via Cross-Val ("Ridge")
 			tic()
