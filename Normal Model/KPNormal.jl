@@ -4,7 +4,7 @@ using Roots
 
 export q, best_q_tau, q_MM, q_MLE, 
       ideal_val, q_dual, lam, shrink, q_CVShrink, q_l2reg, 
-      q_l2reg_oracle, q_sure
+      q_l2reg_CV, q_sure
 
 shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
 
@@ -330,8 +330,8 @@ function q_l2reg(cs, rs, vs, mu)
     end
 end
 
-#oracle regularizer.  Mostly a test of policy class rather than estimator
-function q_l2reg_oracle(cs, rs, vs, thetas; mu_grid = nothing)
+#Hold-out regularizer.  Test against thetas for oracle, use xs/ys for holdout
+function q_l2reg_CV(cs, rs, vs, thetas; mu_grid = nothing)
     const n = length(rs)
     #max possible value of mu...
     if mu_grid == nothing

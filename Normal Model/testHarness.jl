@@ -399,10 +399,17 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
-			qs, mu = q_l2reg_oracle(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
+			qs, mu = q_l2reg_CV(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "OracleReg" thetaval t mu])
+
+			#weighted l2 regularization.  uses Cross-val to find value and then resolves
+			tic()
+			qs, mu = q_l2reg_CV(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])[1:2]		
+			t = toc()
+			thetaval = dot(o.thetas[1:n], q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1])/n
+			writecsv(f, [iRun n "RegCV" thetaval t mu])
 
 			#Plug-in SURE estimation for L2
 			tic()
@@ -574,14 +581,14 @@ n_grid = [2^i for i = 8:17]
 #run some small examples to pre-compile for optimization
 test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)
 test_CLTExp("./temp/tempCLT", 5, [100, 150], 86, 10, 2)
-test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
-test_OddEven("./temp/temp_OddEven", 5,[100, 150], 87, 2, 2)
-test_Gamma("./temp/temp_Gamma", 5, [100, 150], 87, 1., 1.)
-test_Uniform("./temp/temp_Uniform", 5, [100, 150], 87, 1, 2)
-test_Beta("./temp/temp_Beta", 5, [100, 150], 87, .5, .5)
-test_bandwidth("./temp/tempbandwidth", 10, NormalBayesExp(8675309, 3, 100))
+# test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
+# test_OddEven("./temp/temp_OddEven", 5,[100, 150], 87, 2, 2)
 
 
+# test_Gamma("./temp/temp_Gamma", 5, [100, 150], 87, 1., 1.)
+# test_Uniform("./temp/temp_Uniform", 5, [100, 150], 87, 1, 2)
+# test_Beta("./temp/temp_Beta", 5, [100, 150], 87, .5, .5)
+# test_bandwidth("./temp/tempbandwidth", 10, NormalBayesExp(8675309, 3, 100))
 
 # #The counterexample
 # n_grid = [2^i for i = 8:20]
