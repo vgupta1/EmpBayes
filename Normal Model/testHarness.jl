@@ -342,7 +342,7 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "BoxS" thetaval t vals[indmax(objs)]])
 
-			#gauss with optimized rate n^-1/5
+			#gauss with MISE rate n^-1/5
 			h = n^-.2
 			tic()
 			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05)
@@ -350,13 +350,29 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Gauss" thetaval t vals[indmax(objs)]])
 
-			#gauss with optimized rate n^-1/5 with scaling
+			#gauss with MISE rate n^-1/5 with scaling
 			h = n^-.2
 			tic()
 			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05, scale_h = true)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "GaussS" thetaval t vals[indmax(objs)]])
+
+			#gauss with optimized  rate n^-1/6
+			h = n^-.16666
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "GaussO" thetaval t vals[indmax(objs)]])
+
+			#gauss with optimized rate n^-1/6 with scaling
+			h = n^-.16666
+			tic()
+			qs, vals, objs = KP.stein_q_tau_impulse(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step = .05, scale_h = true)
+			t = toc()
+			thetaval = dot(o.thetas[1:n], qs)/n
+			writecsv(f, [iRun n "GaussOS" thetaval t vals[indmax(objs)]])
 
 			#sinc with 1/log(n)
 			h = 1/log(n + 1)
