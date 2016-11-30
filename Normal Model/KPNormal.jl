@@ -392,7 +392,6 @@ function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max 
     return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
 end
 
-impulse(t, h) = abs(t) < .5h ? 1/h : 0.
 box(t) = abs(t) <= .5 ? 1. : 0.
 const sqrt_2_pi = sqrt(2pi)
 gauss(t) = exp(-.5t^2)/ sqrt_2_pi
