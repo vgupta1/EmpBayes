@@ -2,7 +2,6 @@
 tic()
 n_grid = [2^i for i = 8:18]
 numRuns = 50
-
 N = parse(Int, ARGS[1])
 
 a = @spawn test_CLTExp("", numRuns, n_grid, 8675309000, N, 2.)
@@ -33,6 +32,7 @@ data = vcat(data, data_t)
 #strip the name of file_a to make the numbers better
 indx = rsearch(file_a, "_")[1]
 f = open("$(file_a[1:indx])parallel_results.csv", "w")
+f = open("$(file_a[1:indx])$(N)_parallel_results.csv", "w")
 writecsv(f, header)
 writecsv(f, data)
 close(f)
