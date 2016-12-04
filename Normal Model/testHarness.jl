@@ -75,7 +75,7 @@ function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
 
 	dists = Array(Distributions.Uniform, n_max)
 	for ix = 1:n_max
-		dists[ix] = Uniform(-widths[ix]/2, widths[ix]/2)
+		dists[ix] = Uniform(-widths[ix]/2 + thetas[ix], widths[ix]/2 + thetas[ix])
 	end
 	CLTExp(cs, vs, thetas, dists, N)
 end
@@ -86,9 +86,9 @@ function sim!(o::CLTExp, xs, ys, zs)
 	const half_N = round(Int, o.N/2)
 	for ix = 1:n_max
 		rand!(o.dists[ix], zetas)
-		xs[ix] = mean(zetas[1:half_N]) * sqrt(half_N) + o.thetas[ix]
-		ys[ix] = mean(zetas[(half_N + 1):o.N]) * sqrt(half_N) + o.thetas[ix]
-		zs[ix] = mean(zetas) * sqrt(o.N) + o.thetas[ix]
+		xs[ix] = mean(zetas[1:half_N])
+		ys[ix] = mean(zetas[(half_N + 1):o.N])
+		zs[ix] = mean(zetas) * sqrt(o.N)
 	end
 end
 
@@ -422,7 +422,7 @@ function test_harness(f, numRuns, o, n_grid)
 				exit()
 			end
 
-#			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
+			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OracleZ" thetaval t vals[indmax(objs)]])
 
 		end

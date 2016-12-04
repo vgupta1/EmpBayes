@@ -1,9 +1,11 @@
 ## New Drive for the CLT parallel
-
+tic()
 n_grid = [2^i for i = 8:18]
+n_grid = [2^i for i = 2:4]
+
 
 tag = "CLT"
-numRuns = 40
+numRuns = 4
 N = parse(Int, ARGS[1])
 println(N)
 
@@ -31,7 +33,12 @@ data_t = readcsv(file_c, skipstart=1)
 data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
-f = open("$CLT_$(N)_parallel_results.csv", "w")
+
+#strip the name of file_a to make the numbers better
+indx = rsearch(file_a, "_")[1]
+f = open("$(file_a[1:indx])$(N)_parallel_results.csv", "w")
 writecsv(f, header)
 writecsv(f, data)
 close(f)
+
+println("Num Paths: \t $(numRuns) \t Time:", toc() )
