@@ -397,28 +397,12 @@ const sqrt_2_pi = sqrt(2pi)
 gauss(t) = exp(-.5t^2)/ sqrt_2_pi
 
 ## approximate the dirac with an Kernel
-function approx_qprime(vs, tau, zs, lam, cs, h_, K, scale_h)
+function approx_qprime(vs, tau, zs, lam, cs, h_, K)
     out = 0.
     const n = length(vs)
     h = h_
     for ix = 1:n
-        if scale_h
-            h = h_ * sqrt(vs[ix])/(vs[ix] + tau)
-        end
-        out += 1/(vs[ix] + tau)* K((vs[ix]*zs[ix]/(vs[ix] + tau) - lam*cs[ix])/h)/h
-    end
-    out/n
-end
-
-## approximate the dirac with an Kernel
-function approx_qprime2(vs, tau, zs, lam, cs, h_, K, scale_h)
-    out = 0.
-    const n = length(vs)
-    h = h_
-    for ix = 1:n
-        if scale_h
-            h = h_ / sqrt(vs[ix])
-        end
+        h = h_ / sqrt(vs[ix])
         l = lam*cs[ix] * (vs[ix] + tau)/vs[ix]
         out += 1/vs[ix] *  K( (zs[ix]- l)/h )/h
     end
@@ -426,7 +410,7 @@ function approx_qprime2(vs, tau, zs, lam, cs, h_, K, scale_h)
 end
 
 #Stein formula using an kernel approximation for the dirac
-function stein_q_tau_dual(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5., scale_h = false, altKernel=false)
+function stein_q_tau_dual(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5.)
     const n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(tau_grid)
@@ -436,11 +420,7 @@ function stein_q_tau_dual(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5
         qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        if altKernel
-            objs[ix] = dot(zs, qs)/n - approx_qprime2(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K, scale_h)
-        else
-            objs[ix] = dot(zs, qs)/n - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K, scale_h)
-        end
+        objs[ix] = dot(zs, qs)/n - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
