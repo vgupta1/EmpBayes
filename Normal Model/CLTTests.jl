@@ -32,7 +32,6 @@ data = vcat(data, data_t)
 #strip the name of file_a to make the numbers better
 indx = rsearch(file_a, "_")[1]
 f = open("$(file_a[1:indx])parallel_results.csv", "w")
-f = open("$(file_a[1:indx])$(N)_parallel_results.csv", "w")
 writecsv(f, header)
 writecsv(f, data)
 close(f)

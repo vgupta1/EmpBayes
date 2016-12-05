@@ -285,6 +285,10 @@ function q_sure(cs, zs, vs)
         ub *= 2
         iter += 1
     end
+    if iter == MAX_ITER
+        return q(cs, zs), -1 #Returnthe SAA with an error flat
+    end
+
     @assert iter < MAX_ITER "max iterations reached"
     tau_star = fzero(f_deriv, lb, ub)
     rs = shrink(zs, vs, tau_star)
