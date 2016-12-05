@@ -57,25 +57,33 @@ type CLTExp
 	cs
 	vs
 	thetas
-	dists
+	dists  #should be a mean zero r.v. 
 	N
 end
 
-#thetas are initially generated as gaussians
-#widths are randomly genrated between [0, width_max]
-#Likelihoods are uniform, centered on theta with width
-function CLTExp(seed::Integer, width_max, n_max, N; tau0=2, frac_fit = .1)
+#thetas /vs follow the three pt experiment
+#width calculated accordingly
+#Obsservations are uniform, centered on theta with width
+function CLTExp(seed::Integer, width_max, n_max, N; frac_fit = .1)
 	srand(seed)
 	@assert rem(N, 2) == 0
-	cs = rand(n_max) * 2./frac_fit   
+	cs = 1./frac_fit * ones(n_max)
+	thetas = ones(n_max)
+	vs = ones(n_max)
+	thetas[1:3:n_max] = .01
+	vs[1:3:n_max] = .01
+	thetas[3:3:n_max] = 1.5
+	vs[3:3:n_max] = .1
 
-	widths = rand(n_max) * width_max + .1
-	vs = 12 ./ widths.^2
-	thetas = randn(n_max) ./ sqrt(tau0)
+	widths = sqrt(12 ./ vs)
+
+	# widths = rand(n_max) * width_max + .1
+	# vs = 12 ./ widths.^2
+	# thetas = randn(n_max) ./ sqrt(tau0)
 
 	dists = Array(Distributions.Uniform, n_max)
 	for ix = 1:n_max
-		dists[ix] = Uniform(-widths[ix]/2 + thetas[ix], widths[ix]/2 + thetas[ix])
+		dists[ix] = Uniform(-widths[ix]/2, widths[ix]/2 )
 	end
 	CLTExp(cs, vs, thetas, dists, N)
 end
@@ -86,9 +94,9 @@ function sim!(o::CLTExp, xs, ys, zs)
 	const half_N = round(Int, o.N/2)
 	for ix = 1:n_max
 		rand!(o.dists[ix], zetas)
-		xs[ix] = mean(zetas[1:half_N])
-		ys[ix] = mean(zetas[(half_N + 1):o.N])
-		zs[ix] = mean(zetas) * sqrt(o.N)
+		xs[ix] = mean(zetas[1:half_N]) * sqrt(half_N) + o.thetas[ix]
+		ys[ix] = mean(zetas[(half_N + 1):o.N]) * sqrt(half_N) + o.thetas[ix]
+		zs[ix] = mean(zetas) * sqrt(o.N) + o.thetas[ix]
 	end
 end
 
@@ -509,7 +517,7 @@ end
 
 function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
 	o = CLTExp(seed, width_max, maximum(n_grid), N)
-	tag = "$(file_out)_CLTExp_$(N)_$(width_max)_$(seed).csv"
+	tag = "$(file_out)CLTExp_$(N)_$(width_max)_$(seed).csv"
 	f = open(tag, "w")
 	test_harness(f, numRuns, o, n_grid)
 	close(f)
