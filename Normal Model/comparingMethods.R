@@ -2,15 +2,21 @@
 library(ggplot2)
 library(reshape2)
 library(dplyr)
+library(stringr)
 
 setwd("~/Dropbox/Empirical Bayes/Experiments/EmpBayes/Normal Model/")
 
 dat = read.csv("gaussian_2.0_0.0_2.0__parallel_results.csv")
-dat = read.csv("oddEven_0.01_0.01_8675309.csv")
+dat = read.csv("threePart_0.01_0.01_1.5_0.1_8675309")
+
+dat = read.csv("_CLTExp_4_2.0_4_parallel_results.csv")
+dat = read.csv("_CLTExp_16_2.0_16_parallel_results.csv")
+
 
 ##Check the stability of the CV Estimators 
 dat %>% filter(Method %in% c("CV_Shrink", "CV_Shrink2")) %>% 
   group_by(n, Method) %>% summarise(mean(tau0 < 1e-6))
+
 
 #########
 #Rescale the results so that we are looking at percentages
@@ -25,7 +31,9 @@ head(dat.scale)
 #progression in n for
 ###
 pos = position_dodge(.2)
-methods = c("SAA", "MLE", "CV_Shrink", "Rescaled", "CV_Shrink2", "MM", "ExactStein")
+methods = c("SAA", "MLE", "CV_Shrink", "Rescaled", "MM", "ExactStein", "OracleReg", "SURE", "GaussO", "Box")
+methods = c("BoxSAK", "GaussOSAK", "SincSAK", "ExactStein")
+
 
 dat.scale %>%
   filter(Method %in% methods) %>%
@@ -35,65 +43,56 @@ dat.scale %>%
             high=quantile(relPerf, .95)) %>%
   ggplot(aes(x=n, y=avg, color=Method, group=Method), 
          data=., position=pos) + 
-  #geom_point(position=pos) +
-  #geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
-   geom_line(position=pos) +
+  geom_point(position=pos) +
+  geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
+    geom_line(position=pos) +
   scale_x_log10() + 
   theme_minimal(base_size=14) +
   theme(legend.title=element_blank())
 
-
+###############
 ####
-# Notes on the oddEven CAse with tau_odd = .01 : oddEven_0.01_0.01_8675309.csv
+# Notes on the oddEven Case with tau_odd = .01 : oddEven_0.01_0.01_8675309.csv
 ####
-# MLE does essentially perfectly...  How can we fool it better?
+# MLE does essentially perfectly...  How can we fool it better?  
+#    Idea:  Need to construct example where "right" amount of shrinkage is distinct from variability in thetas
 # Both CV and CV_shrink2 do very well.  (CV_shrink does better).
-#   Consider droping CV_Shrink2
 #   We expected them to undershrink.  Check the values. 
+
+# Understanding the choice of kernel
+# For this case it seems the kernel methods all fail for large n!
+
+
+## Notes on the CLT Experiment
+## 1.  Need a better examle that distinguishes between SAA and others
+## 2.  Why does oracle regularization tank so hard?
+
 
 
 ####
 #Studying Tau Convergence
 ####
+methods = c("Box", "Gauss", "ExactStein", "OracleZ", "BoxS", "GaussS", "SincS")
 dat.tau <- dcast(dat, Run + n ~ Method, value.var="tau0")
 dat.tau <- melt(dat.tau, id.vars = c("Run", "n"), 
                   variable.name="Method", 
                   value.name = "tau0")  
 head(dat.tau)
 
-
-methods = c("Rescaled", "MLE", "ExactStein", "CV_Shrink", "CV_Shrink2")
 dat.tau %>%
   filter(Method %in% methods) %>%
   dplyr::group_by(n, Method) %>%
   dplyr::summarise(avg=mean(tau0), 
                    low=quantile(tau0,.05), 
                    high=quantile(tau0, .95)) %>%
-  filter(Method %in% c("CV_Shrink", "CV_Shrink2")) %>%
-  head()
-  
-  
   ggplot(aes(x=n, y=avg, color=Method, group=Method), 
          data=., position=pos) + 
-  #geom_point(position=pos) +
-  #geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
+  geom_point(position=pos) +
+#  geom_errorbar(aes(ymin=low, ymax=high), position=pos) + 
   geom_line(position=pos) +
   scale_x_log10() + 
   theme_minimal(base_size=14) +
   theme(legend.title=element_blank())
-
-
-
-
-
-
-## generate the pdf plots
-filter(dat, Method == "Gauss") %>%
-  ggplot(aes(x=thetaVal, group=factor(n), fill=factor(n))) + 
-  geom_density(linetype="blank", alpha = .5) + 
-  theme_minimal()
-
-ggplot()
 
 
 
@@ -115,130 +114,5 @@ filter(dat, n == 131072) %>%
   dcast(Run ~ Method, value.var="thetaVal") %>%
   ggplot(aes(x=ImpulseStein, y=ExactStein), data=.) + geom_point() + 
   geom_abline()
-
-
-##Convergence of taus?
-dat %>% 
-  filter(Method %in% c("Bayes", "ExactStein", "ImpulseStein_3", "ImpulseStein_45", "ImpulseStein_6", "ImpulseStein_9")) %>%
-  ggplot(aes(x=n, y=tau0, color=Method, group=Method), data=.) + 
-  geom_smooth() +
-  scale_x_log10()  + 
-  theme_bw()
-
-dat %>% 
-  filter(! Method %in% c("FullInfo", "MLE", "ZZ", "NaiveX", "EmpBayesX", 
-                         "OracleX", "NaiveZ", "MM") ) %>%
-  group_by(Method, n) %>%
-  summarize(mean(tau0)) %>% dcast(n ~ Method) %>% select(n, OracleZ, Rescaled)  
-
-
-###################
-# Sanity Checks
-###################
-# Looking specifically at the gaussian case
-dat.small <- filter(dat, Method %in% c("OracleZ", "Bayes"))
-dat.small %>%
-  dcast(Run + n ~ Method, value.var = "thetaVal") %>%
-  group_by(n) %>% mutate(Diff=OracleZ - Bayes, err = Diff/Bayes) %>%
-  summarise( mindiff= min(Diff), 
-             maxdiff=max(Diff), 
-             indx = which(Diff == min(Diff)), 
-             maxerr = max(err), 
-             avgerr = mean(err))
-
-dat.small %>% filter(n == 512) %>%
-  dcast(Run ~ Method, value.var = "thetaVal") %>% 
-  ggplot(aes(x=Bayes, y=OracleZ), data=.) + geom_point()
-  
-##pick one place where things go wrong...
-dat.small %>% filter(n == 512) %>%
-
-
-
-
-
-
-
-
-
-
-
-pos = position_dodge(.2)
-dat %>%filter(n >2000) %>%
-  filter(! Method %in% method_bad) %>%
-  filter( Method != "EmpBayesX") %>%
-  group_by(n, Method) %>%
-  summarise(avg=mean(thetaVal), 
-            low=quantile(thetaVal,.05), 
-            high=quantile(thetaVal, .95)) %>%
-  ggplot(aes(x=n, y=avg, color=Method, group=Method), 
-         data=., position=pos) + 
-  geom_point(position=pos) + geom_line()
-  scale_x_log10() + 
-  theme(legend.title=element_blank())
-
-
-
-
-dat %>% filter(Run == 6) %>%
-  filter(Method %in% c("MLE", "MM", "OracleZ", "Rescaled")) %>%
-  ggplot(aes(x=n, y=thetaVal, color=Method, group=Method), data=.) + 
-  geom_point() + geom_line() + 
-  scale_x_log10()
-
-
-
-########
-### Understanding resaling diffs
-#######
-dat = read.csv("test3_results_tau_scale_8675309.csv")
-dat = read.csv("test4_results_tau_scale_0.5_0.2_8675309.csv")
-dat = read.csv("test4_results_tau_scale_0.5_3_8675309.csv")
-
-
-
-dat$FScale = factor(dat$Scale)
-dat %>% group_by(n, FScale) %>%
-  summarise(avg= mean(thetaVal)) %>%
-  ggplot(aes(x=n, y=avg, color=FScale), data=.) + 
-  geom_point() + geom_line() +
-  theme_bw() +
-  scale_x_log10()
-
-##Does the wrong tau eventually converge?
-pos = position_dodge(.2)
-dat %>% 
-  group_by(n, FScale) %>%
-  summarise(avg=mean(thetaVal), 
-            low=quantile(thetaVal,.05), 
-            high=quantile(thetaVal, .95)) %>%
-  ggplot(aes(x=n, y=avg, color=FScale), 
-         data=., position=pos) + 
-  geom_point() + geom_line() +
-  scale_x_log10() + 
-  theme(legend.title=element_blank())
-
-
-  
-
-
-######
-##Everyone should be dominated path by path by OracleZ
-dat.sum <- dcast(dat, Run + n ~ Method, value.var="thetaVal")
-
-dat.sum %>% filter(n>65000) %>%
-  ggplot(aes(x=OracleZ, y=OracleX), data=.) + 
-  geom_point() + geom_abline()
-
-
-#Further tests
-#What does our new method unscaled look like?
-#What does scaling but using xs look like?
-#Where does TauX and Rescaled TauX Converge to?
-#Does Rao-Blackkwelization help in estimating taux?
-#How big is the interval?  anyway to check?
-
-
-
 
 
