@@ -281,14 +281,14 @@ function test_harness(f, numRuns, o, n_grid)
 			#Naive Z
 			#Same as the ZZ/SAA
 			tic()
-			qs = q(o.cs[1:n], zs[1:n])
+			qs = x(o.cs[1:n], zs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "SAA" thetaval t 0.])
 
 			#fullInfo val
 			tic()
-			qs = q(o.cs[1:n], o.thetas[1:n])
+			qs = x(o.cs[1:n], o.thetas[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
@@ -296,7 +296,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#The "Bayes" value.. only possible bc we if we we are in bayesian
 			if :tau0 in fieldnames(o)
 				tic()
-				qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], o.tau0))
+				qs = x(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], o.tau0))
 				t = toc()
 				thetaval = dot(o.thetas[1:n], qs)/n
 				writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
@@ -304,31 +304,31 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Tau MLE
 			tic()
-			tauMLE, qs = q_MLE(o.cs[1:n], zs[1:n], o.vs[1:n])
+			tauMLE, qs = x_MLE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "MLE" thetaval t tauMLE])
 
 			#Tau MM
 			tic()
-			tauMM, qs = q_MM(o.cs[1:n], zs[1:n], o.vs[1:n])
+			tauMM, qs = x_MM(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "MM" thetaval t tauMM])
 
 			#The half-sample heuristic
 			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])
+			qs, vals, objs = best_x_tau(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])
 			t = toc()
 			
 			tau_RS = vals[indmax(objs)]/2
-			qs = q(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
+			qs = x(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Rescaled" thetaval t tau_RS])
 
 			#The idealized stein approach
 			tic()
-			qs, vals, objs = KP.stein_q_tau_exact(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
+			qs, vals, objs = KP.x_stein_exact(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "ExactStein" thetaval t vals[indmax(objs)]])
@@ -337,7 +337,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling, altKernel
 			h = n^-.16666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05)
+			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Box" thetaval t vals[indmax(objs)]])
@@ -345,7 +345,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#gauss with MISE rate n^-1/5 with scaling, altKernel
 			h = n^-.2
 			tic()
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
+			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Gauss" thetaval t vals[indmax(objs)]])
@@ -353,7 +353,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#gauss with optimized rate n^-1/6 with scaling, altKernel
 			h = n^-.16666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
+			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "GaussO" thetaval t vals[indmax(objs)]])
@@ -361,7 +361,7 @@ function test_harness(f, numRuns, o, n_grid)
 			#sinc with 1/log(n) with scaling, altKernel
 			h = 1/log(n + 1)
 			tic()
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
+			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "Sinc" thetaval t vals[indmax(objs)]])
@@ -369,35 +369,35 @@ function test_harness(f, numRuns, o, n_grid)
 			#sinc with 1/log(n) with scaling, altKernel
 			h = n^-.166666
 			tic()
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
+			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "SincO" thetaval t vals[indmax(objs)]])
 
 			#Shrinkage via Cross-Val ("Ridge")
 			tic()
-			qs, tau_CV = q_CVShrink(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
+			qs, tau_CV = x_HO_MSE(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "CV_Shrink" thetaval t tau_CV])
 
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
-			qs, mu = q_l2reg_CV(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
+			qs, mu = x_l2reg_CV(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "OracleReg" thetaval t mu])
 
 			#weighted l2 regularization.  uses Cross-val to find value and then resolves
 			tic()
-			qs, mu = q_l2reg_CV(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])[1:2]		
+			qs, mu = x_l2reg_CV(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])[1:2]		
 			t = toc()
-			thetaval = dot(o.thetas[1:n], q_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1])/n
+			thetaval = dot(o.thetas[1:n], x_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1])/n
 			writecsv(f, [iRun n "RegCV" thetaval t mu])
 
 			#Plug-in SURE estimation for L2
 			tic()
-			qs, tau = q_sure(o.cs[1:n], zs[1:n], o.vs[1:n])
+			qs, tau = x_sure_MSE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			writecsv(f, [iRun n "SURE" thetaval t tau])
@@ -406,7 +406,7 @@ function test_harness(f, numRuns, o, n_grid)
 			# #use the optimized rate, i.e. h_n = n^-1/6
 			# h = n^-.16666
 			# tic()
-			# qs, vals, objs = KP.stein_q_tau_primal(o.cs[1:n], zs[1:n], o.vs[1:n], h)
+			# qs, vals, objs = KP.x_stein_primal(o.cs[1:n], zs[1:n], o.vs[1:n], h)
 			# t = toc()
 			# yval = dot(ys[1:n], qs)/n
 			# thetaval = dot(o.thetas[1:n], qs)/n
@@ -414,7 +414,7 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#Oracle Value
 			tic()
-			qs, vals, objs = best_q_tau(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
+			qs, vals, objs = best_x_tau(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
 			if abs(thetaval - maximum(objs)) > 1e-5
@@ -543,15 +543,15 @@ function test_bandwidth(file_out, numRuns, o)
 		sim!(o, xs, ys, zs)
 
 		for h in bandwidths
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs, zs, o.vs, n^h, KP.box, tau_step = .1)
+			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, KP.box, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
 			writecsv(f, [iRun n "Box" h thetaval vals[indmax(objs)]])
 
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs, zs, o.vs, n^h, KP.gauss, tau_step = .1)
+			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, KP.gauss, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
 			writecsv(f, [iRun n "Gauss" h thetaval vals[indmax(objs)]])
 
-			qs, vals, objs = KP.stein_q_tau_dual(o.cs, zs, o.vs, n^h, sinc, tau_step = .1)
+			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, sinc, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
 			writecsv(f, [iRun n "Sinc" h thetaval vals[indmax(objs)]])
 		end

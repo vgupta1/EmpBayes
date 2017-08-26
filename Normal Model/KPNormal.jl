@@ -1,19 +1,18 @@
 module KP
-using Distributions
-using Roots
+using Distributions, Roots
 
-export q, best_q_tau, q_MM, q_MLE, 
-      ideal_val, q_dual, lam, shrink, q_CVShrink, q_l2reg, 
-      q_l2reg_CV, q_sure
+export x, best_x_tau, x_MM, x_MLE, 
+      x_dual, lam, shrink, x_l2reg, 
+      x_l2reg_CV, x_sure_MSE, x_stein_exact, 
+      x_OR_MSE, x_stein_box
 
-shrink(xs, vs, tau0) = (vs ./ (vs + tau0)) .* xs
-
-#cs_unscaled should have entries on order unity.
+### The main workhorse
+#cs_unsc (unscaled) should have entries on order unity.
 #The dual return fails with value -1 if the particular run is degenerate.  
-function q_dual(cs_unscaled, rs)
+function x_dual(cs_unsc, rs)
     const n = length(rs)
-    ratios = rs ./ cs_unscaled
-    cs = cs_unscaled/n #makes a copy
+    ratios = rs ./ cs_unsc
+    cs = cs_unsc/n #makes a copy
     indx = sortperm(ratios, rev=true)
     out = zeros(Float64, length(indx))
     weight = 0.
@@ -30,7 +29,7 @@ function q_dual(cs_unscaled, rs)
             weight += cs[indx[ix]]
         else
             #take fractional part
-            out[[indx[ix]]] = (1-weight)/cs[indx[ix]]
+            out[[indx[ix]]] = (1 - weight)/cs[indx[ix]]
             dual = ratios[indx[ix]]
             break
         end
@@ -38,73 +37,84 @@ function q_dual(cs_unscaled, rs)
     out, dual
 end
 
-q(cs_unscaled, rs) = q_dual(cs_unscaled, rs)[1]
-function lam(zs, tau, vs, cs_unscaled)
-    rs = shrink(zs, vs, tau)
-    q_dual(cs_unscaled, rs)[2]
+### Some generic helpers 
+function shrink(muhat, vs, tau) 
+    vmin = minimum(vs)
+    return (vmin + tau)/vmin * (vs ./ (vs + tau)) .* muhat
 end
 
-function dual_obj(zs, tau, vs, cs_unscaled)
-    l = lam(zs, tau, vs, cs_unscaled)
-    l + mean(max(0, shrink(zs, vs, tau) .- l * cs_unscaled))    
+x(cs_unsc, rs) = x_dual(cs_unsc, rs)[1]
+
+function lam(muhat, tau, vs, cs_unsc)
+    rs = shrink(muhat, vs, tau)
+    x_dual(cs_unsc, rs)[2]
 end
 
-#used to in computing the entire tau-grid
-function sbars(xs, cs, vs, f_indx)
-    out = zeros(Float64, length(xs))
+function dual_obj(muhat, tau, vs, cs_unsc)
+    l = lam(muhat, tau, vs, cs_unsc)
+    l + mean(max(0, shrink(muhat, vs, tau) .- l * cs_unsc))    
+end
+
+
+## Computing the whole grid 
+# helper used to identify next crossing point
+# not to be exposed
+function sbars(muhat, cs, vs, f_indx)
+    out = zeros(Float64, length(muhat))
     for i = 1:length(out)
-        out[i] = vs[i]*vs[f_indx] * (cs[i]*xs[f_indx] - cs[f_indx]*xs[i])
-        out[i] /= cs[f_indx]*vs[i]*xs[i] - cs[i]*vs[f_indx]*xs[f_indx]
+        out[i] = vs[i]*vs[f_indx] * (cs[i]*muhat[f_indx] - cs[f_indx]*muhat[i])
+        out[i] /= cs[f_indx]*vs[i]*muhat[i] - cs[i]*vs[f_indx]*muhat[f_indx]
     end   
     out
 end
 
-#min_indx above the threshold
+#Min_indx above a threshold
 #returns -1 if there are no values above thresh
 function indmin_thresh(vals, thresh)
-	const n = length(vals)
 	min_indx = -1
 	min_val = Inf
-	for ix = 1:n
+	for ix = 1:length(vals)
 		if thresh < vals[ix] < min_val
 			min_indx = ix
-			min_val = vals[min_indx]
+			min_val = vals[ix]
 		end
 	end
 	min_indx
 end
 
-## searches over bfs to figure out the best value of tau0
-#  cs_unsc has entries order unity.  cs has entires order 1/n
-## returns max_qs, tau_vals, objs
-## objs[ix] is theobjective at tau_vals[ix] + eps
-function best_q_tau(cs_unscaled, xs, vs, ys)
+# searches over bfs to figure out the best value of tau0 
+# cs_unsc has entries order unity.  cs has entires order 1/n
+# returns max_xs, tau_vals, objs
+# objs[ix] is the objective at tau_vals[ix] + eps
+# For oracle, use muhat, thetas
+# For Hold_out, use muhat1, muhat2
+function best_x_tau(cs_unsc, muhat, vs, thetas)
 	const TOL = 1e-10
-	const n = length(xs)
-	ratios = xs ./ cs_unscaled
+	const n = length(muhat)
+	ratios = muhat ./ cs_unsc
 	indx = sortperm(ratios, rev=true)
-	cs = cs_unscaled/n  #makes a copy
+	cs = cs_unsc/n  #makes a copy
 
 	vals = Float64[]
 	objs = Float64[]
 
 	#first determine tau0 = 0 solution
-	qs = zeros(n)
+	xs = zeros(n)
 	total_weight = 0.
 	frac_indx = -1
     for ix = 1:n
     	#check if the item has positive value, else skip
-    	if xs[indx[ix]] <=0. 
+    	if muhat[indx[ix]] <=0. 
     		continue
     	end
 
         #check if next item fits entirely
         if total_weight + cs[indx[ix]] <= 1
-            qs[indx[ix]] = 1.
+            xs[indx[ix]] = 1.
             total_weight += cs[indx[ix]]
         else
             #take fractional part
-            qs[[indx[ix]]] = (1.-total_weight)/cs[indx[ix]]
+            xs[[indx[ix]]] = (1.-total_weight)/cs[indx[ix]]
             frac_indx = indx[ix]
             total_weight = 1.
             break
@@ -115,24 +125,24 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     if frac_indx == -1 || total_weight < 1
     	println("Trivial Problem Set-up:  All items fit.")
     	println("total_weight:\t $total_weight")
-    	println("qs:\n", qs)
-    	return qs, [0.], [dot(qs, ys)/n]
+    	println("xs:\n", xs)
+    	return xs, [0.], [dot(xs, thetas)/n]
     end
 
     #Now search across all possible tau0, constructing grid as you go
 	tau0 = 0.  #always represents current value
-    svals = sbars(xs, cs, vs, frac_indx)
+    svals = sbars(muhat, cs, vs, frac_indx)
     max_obj = -1
     max_tau0 = 0.
 
-    #At the beginining of every iteration qs is solution for tau0 + eps
+    #At the beginining of every iteration xs is solution for tau0 + eps
    	iter = 0
     while tau0 > -1.
     	iter += 1
     	@assert iter < 1e7 "Max iterations exceeded"
 
 	    #assess solution and record value
-	    obj = dot(ys, qs)/n
+	    obj = dot(thetas, xs)/n
 		push!(objs, obj)
     	push!(vals, tau0)
     	if obj > max_obj
@@ -149,40 +159,40 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     	end
     
     	#pivot depends on whether element is already in basis or not.
-    	if qs[indx_p] >= 1-TOL
+    	if xs[indx_p] >= 1-TOL
     		#Case 1: Exiting Variable becomes zero
-    		if cs[indx_p]/cs[frac_indx] <= 1 - qs[frac_indx]
-    			qs[indx_p] = 0
-    			qs[frac_indx] += cs[indx_p]/cs[frac_indx]
-    			@assert qs[frac_indx] < 1  "Degeneracy? $(qs[frac_indx])"
+    		if cs[indx_p]/cs[frac_indx] <= 1 - xs[frac_indx]
+    			xs[indx_p] = 0
+    			xs[frac_indx] += cs[indx_p]/cs[frac_indx]
+    			@assert xs[frac_indx] < 1  "Degeneracy? $(xs[frac_indx])"
 
     			#frac_indx and s_vals stay the same
     			tau0 = svals[indx_p]
     		else #Case 2: Exiting Variable becomes fractional
-    			qs[indx_p] -= (1.- qs[frac_indx]) * cs[frac_indx]/cs[indx_p]
-    			@assert qs[indx_p] > 0 "Dengeracy?"
+    			xs[indx_p] -= (1.- xs[frac_indx]) * cs[frac_indx]/cs[indx_p]
+    			@assert xs[indx_p] > 0 "Dengeracy?"
 
-    			qs[frac_indx] = 1
+    			xs[frac_indx] = 1
     			tau0 = svals[indx_p]
     			frac_indx = indx_p
-    			svals = sbars(xs, cs, vs, frac_indx)			
+    			svals = sbars(muhat, cs, vs, frac_indx)			
     		end
-    	else  #qs[indx_p] == 0
-	    	frac_weight = qs[frac_indx] * cs[frac_indx]
+    	else  #xs[indx_p] == 0
+	    	frac_weight = xs[frac_indx] * cs[frac_indx]
     		#Case 1: Entering Variable becomes 1
 	    	if frac_weight > cs[indx_p]  
-	    		qs[indx_p] = 1.
-	    		qs[frac_indx] -= cs[indx_p]/cs[frac_indx]
-	    		@assert qs[frac_indx] > 0 "Dengeracy?"
+	    		xs[indx_p] = 1.
+	    		xs[frac_indx] -= cs[indx_p]/cs[frac_indx]
+	    		@assert xs[frac_indx] > 0 "Dengeracy?"
 	    		
 	    		#frac_indx and svals are unchanged
 	    		tau0 = svals[indx_p]
 	    	else #Case 2: Entering Variable becomes fractional
-				qs[indx_p] = frac_weight / cs[indx_p]
-				qs[frac_indx] = 0.
+				xs[indx_p] = frac_weight / cs[indx_p]
+				xs[frac_indx] = 0.
 				tau0 = svals[indx_p]	
 				frac_indx = indx_p
-				svals = sbars(xs, cs, vs, frac_indx)
+				svals = sbars(muhat, cs, vs, frac_indx)
 			end
 		end
     end
@@ -190,68 +200,81 @@ function best_q_tau(cs_unscaled, xs, vs, ys)
     ##assume that solving one last time is short relative to costs
     indmax = findfirst(vals .>= max_tau0)
     if indmax == length(vals)
-        max_qs = q(cs_unscaled, shrink(xs, vs, 1.1*max_tau0))
+        max_xs = x(cs_unsc, shrink(muhat, vs, 1.1*max_tau0))
     else
-        max_qs = q(cs_unscaled, shrink(xs, vs, .5*max_tau0 + .5*vals[indmax + 1]))
+        max_xs = x(cs_unsc, shrink(muhat, vs, .5*max_tau0 + .5*vals[indmax + 1]))
     end
 
-    return max_qs, vals, objs 
+    return max_xs, vals, objs 
 end
 
-#Compute the method of moment estimator
-function q_MM(cs, zs, vs)
-	tau_mm = 1/mean(zs.^2 - 1./vs)
+#Naive grid search for best value of $\tau$
+#cs_unsc has entries order unity.  cs has entires order 1/n
+#returns max_xs, tau_vals, objs
+#objs[ix] is the objective at tau_vals[ix] + eps
+#For oracle, use muhat, thetas
+#For Hold_out, use muhat1, muhat2
+function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
+    const n = length(vs)
+    tau_grid = collect(0.:tau_step:tau_max)
+    objs = zeros(length(tau_grid))
+    obj_best = -Inf
+    tau_best = -1.
+    for ix = 1:length(tau_grid)
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
+        #compute the value corresponding to evaluating the dirac
+        objs[ix] = dot(thetas, xs)/n
+
+        if objs[ix] > obj_best
+            tau_best = tau_grid[ix]
+            obj_best = objs[ix]
+        end
+    end
+    #solving once more is fast compared to rest of algorithm
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
+end
+
+### Empirical Bayes Type Estimators
+##EB Method of Moments
+function x_MM(cs, muhat, vs)
+	tau_mm = 1/mean(muhat.^2 - 1./vs)
 	tau_mm = max(0, tau_mm)
-	tau_mm, q(cs, shrink(zs, vs, tau_mm))
+	tau_mm, x(cs, shrink(muhat, vs, tau_mm))
 end
 
-##The MLE doesn't always solve properly
-##Instead of throwing, just return a -1 and the qs corresponding to tau0 = 0
-function q_MLE(cs, zs, vs, max_bnd = 1e2)
+##EB MLE 
+#Note, mathematically MLE might not solve.  
+#In this case, returns -1 for tau and the xs corresponding to tau0 = 0
+function x_MLE(cs, muhat, vs, max_bnd = 1e2)
 	#solve the MLE using a rootfinder solver for the variance and then invert
 	vars = 1./ vs
-	deriv_loglik(v) = mean(zs.^2 ./ (v + vars).^2 - 1./(v + vars))
+	deriv_loglik(v) = mean(muhat.^2 ./ (v + vars).^2 - 1./(v + vars))
 
     #Check the bracket
     if deriv_loglik(0) * deriv_loglik(max_bnd) > 0
-        return -1, q(cs, zs)
+        return -1, x(cs, muhat)
     else
         v0 = fzero(deriv_loglik, 0, max_bnd)
         #check if you ran up against a bound
         if v0 >= max_bnd
-            return -1, q(cs, zs)
+            return -1, x(cs, muhat)
         end
-    return 1/v0, q(cs, shrink(zs, vs, 1/v0))
+    return 1/v0, x(cs, shrink(muhat, vs, 1/v0))
     end
 end
 
-ideal_val(thetas, cs) = dot(q(cs, thetas), thetas) /length(thetas)
+### Other Estimate then Optimize Heuristics
 
-## returns the best of n^2 draws
-function rand_alg(cs, xs, ys, vs, numDraws=length(xs)^2)
-	const n = length(xs)
-	qalg = zeros(Float64, n)
-	sigs = 1./sqrt(vs)
-	max_val = 0.
-
-	for i=1:numDraws
-		rs = xs + randn(n) .* sigs 
-		q_temp = q(cs, rs)
-		if (ys .* q_temp)/n > qalg
-			qalg = q_temp
-			max_val = (ys .* q_temp)/n
-		end
-	end 
-	qalg 
-end
-
-#a shrinkage heuristic that minimizes the out-of-sample MSE
-function q_CVShrink(cs, xs, ys, vs; max_iter = 5)   
+#Selects tau0 to minimize out-of-sample MSE
+#out of sample mse estimated via hold-out validation
+#This approximates ridge regression
+#Run on muhat1, muhat2 to get hold-out
+function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)   
     function deriv_f(tau0)
-        rs = shrink(xs, vs, tau0)
-        mean((ys - rs) .* rs./(vs + tau0))
+        rs = shrink(muhat1, vs, tau0)
+        mean((muhat2 - rs) .* rs./(vs + tau0))
     end
-    #bracket tau0
+    #bracketting tau0
     max_bnd = 1
     sgn = sign(deriv_f(0))
     iter = 0
@@ -262,19 +285,43 @@ function q_CVShrink(cs, xs, ys, vs; max_iter = 5)
             max_bnd *= 2
         end
     end
-    #if iteration limit reached, just return zeros
+    #if iteration limit reached, just return zero
     tau_star = 0.
     if iter != max_iter
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
-    zs = .5 * (xs + ys)
-    return q(cs, shrink(zs, vs, tau_star)), tau_star
+    muhat = .5 * (muhat1 + muhat2)
+    return x(cs, shrink(muhat1, vs, tau_star)), tau_star
 end
 
-## The Plug-in estimator 
-## using the SURE-optimal shrinkage for the means based on MSE
-function q_sure(cs, zs, vs)
-    f_deriv(tau) = dot(vs.*(zs.^2 * tau - 1) - tau, 1./(vs + tau).^3)
+##Selects tau0 to minimize oracle MSE
+function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 5)   
+    function deriv_f(tau0)
+        rs = shrink(muhat, vs, tau0)
+        mean((thetas - rs) .* rs./(vs + tau0))
+    end
+    #bracketting tau0
+    max_bnd = 1
+    sgn = sign(deriv_f(0))
+    iter = 0
+    for iter = 1:max_iter
+        if sgn * deriv_f(max_bnd) < 0
+            break
+        else
+            max_bnd *= 2
+        end
+    end
+    #if iteration limit reached, just return zero
+    tau_star = 0.
+    if iter != max_iter
+        tau_star = fzero(deriv_f, 0, max_bnd)
+    end
+    return x(cs, shrink(muhat, vs, tau_star)), tau_star
+end
+
+#Selects tau0 to minimize SURE of MSE
+function x_sure_MSE(cs, muhat, vs)
+    f_deriv(tau) = dot(vs.*(muhat.^2 * tau - 1) - tau, 1./(vs + tau).^3)
 
     #bracket for ub
     lb, ub = 0., 1.
@@ -286,145 +333,159 @@ function q_sure(cs, zs, vs)
         iter += 1
     end
     if iter == MAX_ITER
-        return q(cs, zs), -1 #Returnthe SAA with an error flat
+        return x(cs, muhat), -1 #Returnthe SAA with an error flat
     end
 
     @assert iter < MAX_ITER "max iterations reached"
     tau_star = fzero(f_deriv, lb, ub)
-    rs = shrink(zs, vs, tau_star)
+    rs = shrink(muhat, vs, tau_star)
 
-    return q_dual(cs, rs)[1], tau_star
+    return x_dual(cs, rs)[1], tau_star
 end
 
-
+### Regularization based Methods
 #helper function.  not to be exposed
 #cs are unscaled (each element order unity)
-function qi_l2reg(lam, ci, ri, vi, mu)
-    if ri/ci < lam 
-        return 0.
-    elseif ri/ci > lam + mu/ci/vi
-        return 1.
-    else
-        return (ri - lam*ci)*vi/mu
-    end
+function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
+    const t = muhat_j - lam * cj
+    out = max(t, 0) - max(t - Gamma * sqrt_vmin/vj, 0)
+    out *= vj/Gamma/sqrt_vmin 
+    return out
 end
 
 #cs are unscaled (each element order unity)
-function q_l2reg(cs, rs, vs, mu)
-    #find lambda by making knapsack tight
-    #Test value at lam = 0 for safety
+function x_l2reg(cs, muhat, vs, Gamma)
     const n = length(cs)
-    f(lam) = dot(cs, [qi_l2reg(lam, cs[ix], rs[ix], vs[ix], mu) for ix =1:n] )/n
 
-    if f(0) < 1
-        println("Constraint non-binding")
-        return [qi_l2reg(0., cs[ix], rs[ix], vs[ix], mu) for ix =1:n], 0.
+    #Find lambda by making knapsack tight
+    sqrt_vmin = sqrt(minimum(vs))
+    function f(lam)
+        out = 0.
+        for jx = 1:n
+            out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+        end
+        out / n
+    end
+
+    #Check if we can trivially fit all items
+    if f(0) <= 1
+        return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
     else
-        #bracket for ub
+        #bracketting
         lb, ub = 0., 1.
         iter = 1
         MAX_ITER = 20
-        while f(ub) > 1 && iter < MAX_ITER
+        while f(ub) > 1
+            @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
             lb = ub
             ub *= 2
             iter += 1
         end
-        lamstar = fzero(lam-> f(lam) -1, [lb, ub])
-        return [qi_l2reg(lamstar, cs[ix], rs[ix], vs[ix], mu) for ix =1:n], lamstar
+        lamstar = fzero(lam -> f(lam) - 1, [lb, ub])
+        return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
     end
 end
 
-#Hold-out regularizer.  Test against thetas for oracle, use xs/ys for holdout
-function q_l2reg_CV(cs, rs, vs, thetas; mu_grid = nothing)
-    const n = length(rs)
+#Selects Gamma via hold-out validation
+#Test against muhat/thetas for oracle, use muhat1/muhat2 for holdout
+function x_l2reg_CV(cs, muhat, vs, thetas; Gamma_Grid = nothing)
+    const n = length(muhat)
     #max possible value of mu...
-    if mu_grid == nothing
-        max_mu = sum(cs .* vs .* max(rs, 0))/n
-        max_mu = max(max_mu, maximum(rs .* vs)) 
-        mu_grid = linspace(0., max_mu, 200)
+    if Gamma_Grid == nothing
+        Gamma_max = mean(cs .* vs .* max(muhat, 0))
+        Gamma_max = max(Gamma_max, maximum(muhat .* vs)) 
+        Gamma_Grid = linspace(0., Gamma_max, 200)
     end
 
     #an exhaustive search
     best_val = -1.
-    best_qs = zeros(n)
-    q_t = zeros(n)
-    best_mu = -1;
-    for (ix, mu) in enumerate(mu_grid)
-        q_t[:] = q_l2reg(cs, rs, vs, mu)[1]
-        val_t = dot(thetas, q_t)/n
+    xhat = zeros(n)
+    x_t = zeros(n)
+    Gamma_hat = -1;
+
+    for (ix, Gamma) in enumerate(Gamma_Grid)
+        x_t[:] = x_l2reg(cs, muhat, vs, Gamma)[1]
+        val_t = dot(thetas, x_t)/n
         if val_t > best_val
             best_val = val_t
-            best_mu = mu
-            best_qs[:] = q_t
+            best_Gamma = Gamma
+            xhat[:] = x_t
         end
     end     
-    return best_qs, best_mu, best_val
+    return xhat, Gamma_hat, best_val
 end
 
+### EB Optimization Approaches
 
-
-## the explicit evaluation of the dirac term with lambda approx in a stein expansion
-function exp_qprime(vs, tau, zs, lam, cs, thetas)
+##Dirac Expansion
+#Evaluation of Stein term by approximating lambda approx
+#Serves as an upperbound on choice of bandwidth
+#cs are unscaled
+function dirac_bias(vs, tau, muhat, lam, cs_unsc, thetas)
     out = 0.
     const n = length(vs)
-    for ix = 1:n
-        out += 1/sqrt(2*pi*vs[ix]) * exp(-.5 * (vs[ix]+tau)^2/vs[ix] * (lam*cs[ix] - vs[ix]*thetas[ix]/(vs[ix]+tau))^2 )
+    vmin = minimum(vs)
+    for jx = 1:n
+        rj = (vmin + tau)/vmin * vs[jx]/(vs[jx] + tau) * thetas[jx]
+        arg = (lam * cs_unsc[jx] - rj) 
+        arg *= (vs[jx] + tau) * vmin / (vmin + tau) / sqrt(vs[jx])
+        out += exp(-.5 * arg^2) / sqrt(2*pi * vs[jx])
     end
-    out/n
+    return out/n
 end
 
-#Stein approach using an exact calculation for the dirac
+##Stein approach using an exact dirac calculation
 #only approximations are lam(t,z) -> lam(t) and ULLN
-function stein_q_tau_exact(cs_unscaled, zs, vs, thetas; tau_step = .01, tau_max = 5.)
+#Serves as an upperbound on performance of a kernel bandwith
+function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
     const n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(length(tau_grid))
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
-        #approximates lambda by the finite dual value...
-        objs[ix] = dot(zs, qs)/n - exp_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, thetas)
+        objs[ix] = dot(muhat, xs)/n - dirac_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, thetas)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
             obj_best = objs[ix]
         end
     end
-    
-    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
+    #solving once more is fast compared to rest of algorithm
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
-box(t) = abs(t) <= .5 ? 1. : 0.
-const sqrt_2_pi = sqrt(2pi)
-gauss(t) = exp(-.5t^2)/ sqrt_2_pi
-
-## approximate the dirac with an Kernel
-function approx_qprime(vs, tau, zs, lam, cs, h_, K)
+#Approximate the dirac with an box kernel
+#rs is the shrunken value 
+function approx_bias(vs, tau, rs, lam, cs, h)
     out = 0.
     const n = length(vs)
-    h = h_
-    for ix = 1:n
-        h = h_ / sqrt(vs[ix])
-        l = lam*cs[ix] * (vs[ix] + tau)/vs[ix]
-        out += 1/vs[ix] *  K( (zs[ix]- l)/h )/h
+    vmin = minimum(vs)
+    hj = h
+    for jx = 1:n
+        hj = h * (vmin + tau)/vmin * sqrt(vs[jx])/(vs[jx] + tau)
+        if abs(rs[jx] - lam * cs[jx]) <= hj
+            out += 1/sqrt(vs[jx]) / h / 2
+        end
     end
     out/n
 end
 
 #Stein formula using an kernel approximation for the dirac
-function stein_q_tau_dual(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5.)
+function x_stein_box(cs_unsc, muhat, vs, h; 
+                     tau_step = .01, tau_max = 5.)
     const n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(tau_grid)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        objs[ix] = dot(zs, qs)/n - approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h, K)
+        objs[ix] = dot(muhat, xs)/n - approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
@@ -432,11 +493,12 @@ function stein_q_tau_dual(cs_unscaled, zs, vs, h, K; tau_step = .01, tau_max = 5
         end
     end
     
-    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
-##This is done in the laziest way possible
-function primal_approx_qprime(vs, tau, zs, lam, cs, h)
+##Approximating Stein by First Order (primal) difference
+#Lazy direct way.
+function primal_approx_bias(vs, tau, muhat, lam, cs, h)
     out = 0.
     const n = length(vs)
     ej = zeros(n)
@@ -446,26 +508,26 @@ function primal_approx_qprime(vs, tau, zs, lam, cs, h)
         end
         ej[jx] = .5h
 
-        qs_p = q(cs, shrink(zs + ej, vs, tau))[jx]
-        qs_m = q(cs, shrink(zs - ej, vs, tau))[jx]
+        xs_p = x(cs, shrink(muhat + ej, vs, tau))[jx]
+        xs_m = x(cs, shrink(muhat - ej, vs, tau))[jx]
 
-        out += (qs_p - qs_m)/h/vs[jx]
+        out += (xs_p - xs_m)/h/vs[jx]
     end
     out/n
 end
 
 # a smarter way to do this would leverage the parametric programming
-function stein_q_tau_primal(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5.)
+function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(length(tau_grid))
     obj_best = -Inf
     tau_best = -1.
     const n =length(vs)
     for ix = 1:length(tau_grid)
-        qs, lam = q_dual(cs_unscaled, shrink(zs, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        objs[ix] = dot(zs, qs)/n - primal_approx_qprime(vs, tau_grid[ix], zs, lam, cs_unscaled, h)
+        objs[ix] = dot(muhat, xs)/n - primal_approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
@@ -473,7 +535,7 @@ function stein_q_tau_primal(cs_unscaled, zs, vs, h; tau_step = .01, tau_max = 5.
         end
     end
     
-    return q(cs_unscaled, shrink(zs, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
 

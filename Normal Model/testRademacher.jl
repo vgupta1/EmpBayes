@@ -19,7 +19,7 @@ function radTests(file_out, numRuns, n_max, seed=8675309)
 
 		for n = round(Int64, 2.^(5:log2(n_max)))
 		    #solve for tauORZ, and compute the requisite difference.
-		    qOR, tau_grid_full, objs  = KP.best_q_tau(cs[1:n], zs[1:n], vs[1:n], thetas[1:n])
+		    qOR, tau_grid_full, objs  = KP.best_x_tau(cs[1:n], zs[1:n], vs[1:n], thetas[1:n])
 		    tauOR = tau_grid_full[indmax(objs)]
 		    diff = dot(thetas[1:n] - shrink(zs[1:n], vs[1:n], tauOR), qOR)/n
 

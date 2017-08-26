@@ -1,5 +1,6 @@
-##testing the uniform limit
+##VG I beleive this is garbage.  kill it for now.  
 
+##testing the uniform limit
 
 module KP
 using Distributions, kNN
@@ -23,7 +24,7 @@ function q_beta(cs, rs, beta)
     out
 end
 
-q(cs, rs) = q_beta(cs, rs, 0.)
+x(cs, rs) = q_beta(cs, rs, 0.)
 
 # compute the distribution of rewards for various betas
 # This tells us something about the oracle value
@@ -46,13 +47,13 @@ ideal_val(thetas, cs) = dot(q_beta(cs, 1./thetas, 0), 1./thetas) /length(thetas)
 function q_linreg(cs, rs, ts)
 	a, b = linreg(rs, ts) 
 	rhat = a + b*rs
-	q(cs, rhat)
+	x(cs, rhat)
 end
 
 function q_knn(cs, rs, ts, kernel = :gaussian)
 	fit = kernelregression(rs, ts, kernel) #let julia pick bandwidth
 	rhat = predict(fit, rs)
-	q(cs, rhat)
+	x(cs, rhat)
 end
 
 function perf_reg(thetas, cs, numSims)
