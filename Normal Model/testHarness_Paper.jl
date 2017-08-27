@@ -118,10 +118,11 @@ function test_harness(f, numRuns, o, n_grid)
 
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
-			xs, mu = x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
+			xs, Gamma_grid, objs = x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
 			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "OracleReg" thetaval t mu])
+			writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
 
 			# #The primal stein approach
 			# #use the optimized rate, i.e. h_n = n^-1/6
@@ -189,6 +190,46 @@ function test_OddEven(file_out, numRuns, n_grid, seed, even_v; even_theta=1., fr
 	close(f)
 	return file_name
 end
+
+
+### The multiple Gamma Setup
+function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid, frac_fit=.1)
+	#build the sim object
+	#use a standard normal simulation for now
+	srand(seed)
+	const n_max = maximum(n_grid)
+	cs = 1./frac_fit * ones(n_max)
+	thetas = randn(n_max)
+	vs = rand(n_max)
+	o = DefaultExp(cs, thetas, vs)
+	muhat = zeros(n_max)
+
+	#run the testharness
+	#output files
+	file_name = "$(file_out)_multi_gamma_$(seed).csv"
+	f = open(file_name, "w")
+	#write a header
+	writecsv(f, ["Run" "n" "Method" "val" "Gamma"])
+
+	for iRun in 1:numRuns
+		sim!(o, muhat)
+		for n in n_grid
+			for Gamma in gamma_Grid
+				xhat, lam = x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma)
+				const valOR = dot(o.thetas[1:n], xhat)/n
+				const val = dot(muhat[1:n], xhat)/n - KP.reg_bias(o.cs[1:n], o.vs[1:n], muhat[1:n], lam, Gamma)
+
+				writecsv(f, [iRun n "Oracle" valOR Gamma])			
+				writecsv(f, [iRun n "Estimate" val Gamma])
+			end
+		end
+		flush(f)
+	end
+	close(f)
+	return file_name
+end
+
+
 
 # # ### The three parts experimental set-up
 # # function test_threePart(file_out, numRuns, n_grid, seed, theta_l, v_l, theta_h, v_h)
@@ -380,8 +421,11 @@ end
 # end
 
 #########
-n_grid = [2^i for i = 8:17]
+n_grid = [2^i for i = 5:17]
 test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
+
+test_MultiGamma("./temp/temp_MultGamm", 5, [100, 150], 8675309, [.01, .5, 1, 2, 4])
+
 
 #run some small examples to pre-compile for optimization
 # test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)

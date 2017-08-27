@@ -388,31 +388,28 @@ end
 
 #Selects Gamma via hold-out validation
 #Test against muhat/thetas for oracle, use muhat1/muhat2 for holdout
-function x_l2reg_CV(cs, muhat, vs, thetas; Gamma_Grid = nothing)
+#output xhat, Gamma_grid, objs
+function x_l2reg_CV(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     const n = length(muhat)
-    #max possible value of mu...
-    if Gamma_Grid == nothing
-        Gamma_max = mean(cs .* vs .* max(muhat, 0))
-        Gamma_max = max(Gamma_max, maximum(muhat .* vs)) 
-        Gamma_Grid = linspace(0., Gamma_max, 200)
-    end
+    Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
     #an exhaustive search
     best_val = -1.
     xhat = zeros(n)
     x_t = zeros(n)
     Gamma_hat = -1;
+    objs = zeros(length(Gamma_grid))
 
-    for (ix, Gamma) in enumerate(Gamma_Grid)
+    for (ix, Gamma) in enumerate(Gamma_grid)
         x_t[:] = x_l2reg(cs, muhat, vs, Gamma)[1]
-        val_t = dot(thetas, x_t)/n
-        if val_t > best_val
-            best_val = val_t
+        objs[ix] = dot(thetas, x_t)/n
+        if objs[ix] > best_val
+            best_val = objs[ix]
             best_Gamma = Gamma
             xhat[:] = x_t
         end
     end     
-    return xhat, Gamma_hat, best_val
+    return xhat, Gamma_grid, objs
 end
 
 ### EB Optimization Approaches
@@ -537,6 +534,40 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
     
     return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
+
+##Regularization bias via stein's lemma
+function reg_bias(cs, vs, muhats, lam, Gamma)
+    out = 0.
+    const n = length(vs)
+    const sqrt_vmin = sqrt(minimum(vs))
+    for jx = 1:n
+        if 0 <= muhats[jx] - lam * cs[jx] <= Gamma * sqrt_vmin/vs[jx]
+            out += 1
+        end
+    end
+    out / Gamma / sqrt_vmin / n
+end
+
+#A smarter way to do this would leverage smoothness in gamma to update solutions
+#rather than resolve
+function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
+    Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
+    objs = zeros(length(Gamma_grid))
+    obj_best = -Inf
+    Gamma_best = -1.
+    const n =length(vs)
+    for ix = 1:length(Gamma_grid)
+        xs, lam = x_l2reg(cs_unsc, muhat, vs, Gamma_grid[ix])
+        objs[ix] = dot(muhat, xs)/n - reg_bias(cs_unsc, vs, muhat, lam, Gamma_grid[ix])
+
+        if objs[ix] > obj_best
+            Gamma_best = Gamma_grid[ix]
+            obj_best = objs[ix]
+        end
+    end    
+    return x_l2reg(cs_unsc, muhat, vs, Gamma_best)[1], Gamma_grid, objs
+end
+
 
 
 end #ends module
