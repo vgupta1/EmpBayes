@@ -34,7 +34,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_harness(f, numRuns, o, n_grid)
+function test_harness(f, numRuns, o, n_grid; includeReg=true)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 
@@ -116,13 +116,24 @@ function test_harness(f, numRuns, o, n_grid)
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "BoxStein" thetaval t vals[indmax(objs)]])
 
-			#weighted l2 regularization.  uses the oracle value for now
+			#Oracle Value
 			tic()
-			xs, Gamma_grid, objs = x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
+			xs, vals, objs = best_x_tau(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
 			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
+			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
+
+
+			if includeReg
+				#weighted l2 regularization.  uses the oracle value for now
+				tic()
+				xs, Gamma_grid, objs = x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
+				t = toc()
+				Gammahat = Gamma_grid[indmax(objs)]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+			end
 
 			# #The primal stein approach
 			# #use the optimized rate, i.e. h_n = n^-1/6
@@ -134,13 +145,6 @@ function test_harness(f, numRuns, o, n_grid)
 			# thetaval = dot(o.thetas[1:n], xs)/n
 			# writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
 
-			#Oracle Value
-			tic()
-			xs, vals, objs = best_x_tau(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
-			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
 
 		end
 		flush(f)
@@ -171,7 +175,8 @@ function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0, avg_tau,
 end
 
 ### The odd even set-up.  
-function test_OddEven(file_out, numRuns, n_grid, seed, even_v; even_theta=1., frac_fit=.1)
+function test_OddEven(file_out, numRuns, n_grid, seed, even_v; 
+						even_theta=1., frac_fit=.1, includeReg=true)
 	#build the sim object
 	srand(seed)
 	const n_max = maximum(n_grid)
@@ -186,7 +191,7 @@ function test_OddEven(file_out, numRuns, n_grid, seed, even_v; even_theta=1., fr
 	#output files
 	file_name = "$(file_out)_OddEven_$(even_theta)_$(even_v)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid)
+	test_harness(f, numRuns, o, n_grid, includeReg=includeReg)
 	close(f)
 	return file_name
 end

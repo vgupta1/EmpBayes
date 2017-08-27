@@ -1,14 +1,19 @@
 ## A small driver file to run the tests in parallel and combine them
 #run like this
 #julia -p 3 -L testHarness.jl tests.jl
+#pass arguments for things via ARGS[1] is numRun per batch
 
-n_grid = [2^i for i = 7:17]
+n_grid = [2^i for i = 5:17]
+numRuns = parse(Int, ARGS[1])
+
+spath = "./Results_Paper/SAA_Plot"
+even_vs = float(ARGS[2])
 
 tic()
-numRuns = 50
-a = @spawn test_Gaussian("gaussian", numRuns, n_grid, 8675309000, 2., 0., 2.)
-b = @spawn test_Gaussian("gaussian", numRuns, n_grid, 5164174290, 2., 0., 2.)
-c = @spawn test_Gaussian("gaussian", numRuns, n_grid, 5167462266, 2., 0., 2.)
+a = @spawn test_OddEven(spath, numRuns, n_grid, 8675309000, even_vs, includeReg=false)
+b = @spawn test_OddEven(spath, numRuns, n_grid, 5164174290, even_vs, includeReg=false)
+c = @spawn test_OddEven(spath, numRuns, n_grid, 5167462266, even_vs, includeReg=false)
+time_stamp = toc()
 
 ######
 file_a = fetch(a)
@@ -31,10 +36,14 @@ data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
 #strip the name of file_a to make the numbers better
-indx= rsearch(file_a, "_")[1]
-f = open("$(file_a[1:indx])_parallel_results.csv", "w")
+println("Filea \t", file_a)
+println("spath \t", spath)
+
+indx = search(file_a, spath)[end] + 1
+
+f = open("$spath_$(file_a[indx:end])_full_$(3numRuns).csv", "w")
 writecsv(f, header)
 writecsv(f, data)
 close(f)
 
-println("Num Paths: \t $(numRuns) \t Time:", toc() )
+println("Num Paths: \t $(numRuns) \t Time:", time_stamp )
