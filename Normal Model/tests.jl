@@ -6,7 +6,7 @@
 n_grid = [2^i for i = 5:17]
 numRuns = parse(Int, ARGS[1])
 
-spath = "./Results_Paper/SAA_Plot"
+spath = "./Results/SAA_Plot"
 even_vs = float(ARGS[2])
 
 tic()
