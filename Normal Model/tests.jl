@@ -13,7 +13,7 @@ tic()
 a = @spawn test_OddEven(spath, numRuns, n_grid, 8675309000, even_vs, includeReg=false)
 b = @spawn test_OddEven(spath, numRuns, n_grid, 5164174290, even_vs, includeReg=false)
 c = @spawn test_OddEven(spath, numRuns, n_grid, 5167462266, even_vs, includeReg=false)
-c = @spawn test_OddEven(spath, numRuns, n_grid, 123456, even_vs, includeReg=false)
+d = @spawn test_OddEven(spath, numRuns, n_grid, 123456, even_vs, includeReg=false)
 
 ######
 file_a = fetch(a)

@@ -2,10 +2,6 @@
 include("KPNormal.jl")
 using Distributions, KP
 
-##VG Sanity Checks
-# 1) Does the emp-bayes policy converge for a variety of priors?
-# 2) For a single run, is the regularized policy producing something useful?
-
 #Default experiments fix a single theta, cs, vs across all simulation
 type DefaultExp
 	cs
@@ -239,15 +235,34 @@ function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
 end
 
 
+### The three parts experimental set-up
+function test_threePart(file_out, numRuns, n_grid, seed, 
+						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h)
+	srand(seed)
+	const n_max = maximum(n_grid)
+	cs = ones(n_max)
+	thetas = ones(n_max)
+	vs = ones(n_max)
 
-# # ### The three parts experimental set-up
-# # function test_threePart(file_out, numRuns, n_grid, seed, theta_l, v_l, theta_h, v_h)
-# # 	o = threePartExp(seed, maximum(n_grid), theta_l, v_l, theta_h, v_h)
-# # 	f = open("$(file_out)_$(theta_l)_$(v_l)_$(theta_h)_$(v_h)_$(seed).csv", "w")
-# # 	test_harness(f, numRuns, o, n_grid)
-# # 	close(f)
-# # 	return "$(file_out)_$(theta_l)_$(v_l)_$(theta_h)_$(v_h)_$(seed).csv"
-# # end
+	thetas[1:3:n_max] = theta_l
+	vs[1:3:n_max] = v_l
+	cs[1:3:n_max] = c_l
+
+	thetas[2:3:n_max] = theta_m
+	vs[2:3:n_max] = v_m
+	cs[2:3:n_max] = c_m
+
+	thetas[3:3:n_max] = theta_h
+	vs[3:3:n_max] = v_h
+	cs[3:3:n_max] = c_h
+
+	o = DefaultExp(cs, thetas, vs)
+	file_name = "$(file_out)_3part_$(theta_l)_$(v_l)_$(c_l)_$(theta_m)_$(v_m)_$(c_m)_$(theta_h)_$(v_h)_$(c_h)_$(seed).csv"
+	f = open(file_name, "w")
+	test_harness(f, numRuns, o, n_grid)
+	close(f)
+	return file_name
+end
 
 # ### The Gamma Test
 # function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
@@ -297,20 +312,6 @@ end
 # 	return tag
 # end
 
-
-# #cs and vs fixed across all runs
-# function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=.1)
-# 	srand(seed)
-# 	cs = 1./frac_fit * ones(n_max)
-
-# 	thetas = ones(n_max)
-# 	thetas[1:2:n_max] = odd_theta
-# 	vs = ones(n_max)
-# 	vs[1:2:n_max] = odd_tau
-
-# 	noise = zeros(n_max)
-# 	DefaultExp(cs, thetas, vs, noise)
-# end
 
 # function threePartExp(seed::Integer, n_max::Integer, theta_l, v_l, theta_h, v_h, frac_fit = .1)
 # 	srand(seed)
