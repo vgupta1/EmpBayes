@@ -199,11 +199,10 @@ end
 
 ### The multiple Gamma Setup
 function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
-						even_theta = 1., even_v = 2)
-	#build the sim object
-	#use a standard normal simulation for now
+						even_theta = 1., even_v = 2, frac_fit = .1)
 	srand(seed)
 	const n_max = maximum(n_grid)
+
 	#build the sim object with the odd_even setup
 	srand(seed)
 	const n_max = maximum(n_grid)
@@ -213,9 +212,9 @@ function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
 	vs = ones(n_max)
 	vs[2:2:n_max] = even_v
 	o = DefaultExp(cs, thetas, vs)
+	muhat = zeros(n_max)
 
-	#run the testharness
-	#output files
+	#output file
 	file_name = "$(file_out)_multi_gamma_$(seed).csv"
 	f = open(file_name, "w")
 	#write a header
@@ -433,9 +432,6 @@ end
 #########
 n_grid = [2^i for i = 5:17]
 test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
-
-test_MultiGamma("./temp/temp_MultGamm", 5, [100, 150], 8675309, [.01, .5, 1, 2, 4])
-
 
 #run some small examples to pre-compile for optimization
 # test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)
