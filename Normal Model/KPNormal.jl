@@ -4,7 +4,7 @@ using Distributions, Roots
 export x, best_x_tau, x_MM, x_MLE, 
       x_dual, lam, shrink, x_l2reg, 
       x_l2reg_CV, x_sure_MSE, x_stein_exact, 
-      x_OR_MSE, x_stein_box
+      x_OR_MSE, x_stein_box, x_l2reg_warm
 
 ### The main workhorse
 #cs_unsc (unscaled) should have entries on order unity.
@@ -386,6 +386,72 @@ function x_l2reg(cs, muhat, vs, Gamma)
     end
 end
 
+#Solves the Regularization problem from a warm-start
+#If heuristic fails, reverts to solution above
+function x_l2reg_warm(cs, muhat, vs, Gamma; lambda_0 = -1., Gamma_0 = Inf)
+    const n = length(cs)
+    #Find lambda by making knapsack tight
+    sqrt_vmin = sqrt(minimum(vs))
+    function f(lam)
+        out = 0.
+        for jx = 1:n
+            out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+        end
+        out / n
+    end
+
+    #Check if we can trivially fit all items
+    if f(0) <= 1
+        return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
+    end
+
+    #Use derivative to approximate a sol if you have warmstart
+    if lambda_0 > 0
+        deriv = 0.
+        for jx = 1:n
+            deriv += cs[jx]^2 * vs[jx] / Gamma / sqrt_vmin
+        end
+        deriv /= n        
+        lambda_approx = max(lambda_0 + (1. - f(lambda_0))/deriv, 0)
+    else
+        lambda_approx = 0
+    end
+
+    #Now look for a good bracket.  
+    ub, lb = 1., 0.
+    if (Gamma_0 < Gamma) && (lambda_0 > 0)
+        ub = lambda_0  #since decreasing
+        if f(lambda_approx) >= 1
+            lb = lambda_approx
+        else
+            ub = min(lambda_approx, ub)
+        end
+    else #either Gamma_0 is bigger or wasn't set
+        lb = max(0, lambda_0) #since decreasing
+        if f(lambda_approx) <= 1
+            ub = lambda_approx
+        else
+            lb = max(lb, lambda_approx)
+            ub = 2lb + 1
+            iter = 1
+            MAX_ITER = 20
+            while f(ub) > 1
+                @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
+                lb = ub
+                ub *= 2
+                iter += 1
+            end
+        end
+    end
+    println("Bracket:\t [$lb, $ub]")
+    @assert f(lb) >= 1  "lb is incorrect in bracketing [$lb, $ub]"
+    @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
+
+    lamstar = fzero(lam -> f(lam) - 1, [lb, ub])
+    return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
+end
+
+
 #Selects Gamma via hold-out validation
 #Test against muhat/thetas for oracle, use muhat1/muhat2 for holdout
 #output xhat, Gamma_grid, objs
@@ -411,6 +477,36 @@ function x_l2reg_CV(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1, Gam
     end     
     return xhat, Gamma_grid, objs
 end
+
+
+## Uses warm-start information to solve and clever bounds on Gamma OR
+function x_l2reg_CV_warm(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
+    const n = length(muhat)
+    Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
+
+    #an exhaustive search
+    best_val = -1.
+    xhat = zeros(n)
+    x_t = zeros(n)
+    Gamma_hat = -1;
+    objs = zeros(length(Gamma_grid))
+
+    for (ix, Gamma) in enumerate(Gamma_grid)
+        x_t[:] = x_l2reg(cs, muhat, vs, Gamma)[1]
+        objs[ix] = dot(thetas, x_t)/n
+        if objs[ix] > best_val
+            best_val = objs[ix]
+            best_Gamma = Gamma
+            xhat[:] = x_t
+        end
+    end     
+    return xhat, Gamma_grid, objs
+end
+
+
+
+
+
 
 ### EB Optimization Approaches
 
