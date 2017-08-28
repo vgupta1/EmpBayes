@@ -198,16 +198,21 @@ end
 
 
 ### The multiple Gamma Setup
-function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid, frac_fit=.1)
+function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
+						even_theta = 1., even_v = 2)
 	#build the sim object
 	#use a standard normal simulation for now
 	srand(seed)
 	const n_max = maximum(n_grid)
+	#build the sim object with the odd_even setup
+	srand(seed)
+	const n_max = maximum(n_grid)
 	cs = 1./frac_fit * ones(n_max)
-	thetas = randn(n_max)
-	vs = rand(n_max)
+	thetas = zeros(n_max)
+	thetas[2:2:n_max] = even_theta
+	vs = ones(n_max)
+	vs[2:2:n_max] = even_v
 	o = DefaultExp(cs, thetas, vs)
-	muhat = zeros(n_max)
 
 	#run the testharness
 	#output files
