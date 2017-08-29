@@ -237,7 +237,7 @@ end
 
 ### The three parts experimental set-up
 function test_threePart(file_out, numRuns, n_grid, seed, 
-						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h)
+						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h, includeReg)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	cs = ones(n_max)
@@ -259,7 +259,7 @@ function test_threePart(file_out, numRuns, n_grid, seed,
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_3part_$(theta_l)_$(v_l)_$(c_l)_$(theta_m)_$(v_m)_$(c_m)_$(theta_h)_$(v_h)_$(c_h)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid)
+	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)
 	close(f)
 	return file_name
 end

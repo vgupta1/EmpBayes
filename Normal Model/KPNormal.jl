@@ -295,12 +295,16 @@ function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)
 end
 
 ##Selects tau0 to minimize oracle MSE
-function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 5)   
+#We can use the old shrinkage to compute tau.
+function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 10)   
+    const n = length(cs)
     function deriv_f(tau0)
-        rs = shrink(muhat, vs, tau0)
-        mean((thetas - rs) .* rs./(vs + tau0))
-    end
+        #use old scaling
+        rs = muhat .* vs ./ (vs + tau0)
+        mean( (thetas - rs) .* rs ./ (vs + tau0))
+    end   
     #bracketting tau0
+    #this code is a bit lazy.
     max_bnd = 1
     sgn = sign(deriv_f(0))
     iter = 0
