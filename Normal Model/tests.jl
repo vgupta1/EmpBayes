@@ -10,10 +10,10 @@ spath = "./Results/SAA_Plot"
 even_vs = float(ARGS[2])
 
 tic()
-a = @spawn test_OddEven(spath, numRuns, n_grid, 8675309000, even_vs, includeReg=false)
-b = @spawn test_OddEven(spath, numRuns, n_grid, 5164174290, even_vs, includeReg=false)
-c = @spawn test_OddEven(spath, numRuns, n_grid, 5167462266, even_vs, includeReg=false)
-d = @spawn test_OddEven(spath, numRuns, n_grid, 123456, even_vs, includeReg=false)
+a = @spawn test_OddEven(spath, numRuns, n_grid, 8675309000, even_vs, includeReg=true)
+b = @spawn test_OddEven(spath, numRuns, n_grid, 5164174290, even_vs, includeReg=true)
+c = @spawn test_OddEven(spath, numRuns, n_grid, 5167462266, even_vs, includeReg=true)
+d = @spawn test_OddEven(spath, numRuns, n_grid, 123456, even_vs, includeReg=true)
 
 ######
 file_a = fetch(a)
