@@ -122,13 +122,21 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 
 
 			if includeReg
-				#weighted l2 regularization.  uses the oracle value for now
+				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
+				xs, Gamma_grid, objs = x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+
+				#Our Stein Approach to Regularization
+				tic()
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_max = 20.))
+				t = toc()
+				Gammahat = Gamma_grid[indmax(objs)]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
 			end
 
 			# #The primal stein approach

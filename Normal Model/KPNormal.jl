@@ -664,12 +664,22 @@ end
 #rather than resolve
 function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
-    objs = zeros(length(Gamma_grid))
-    obj_best = -Inf
-    Gamma_best = -1.
+
+    #preallocated for speed
     const n =length(vs)
+    objs = zeros(Gamma_grid)
+    xs = zeros(n)
+
+    #updated as we find better values
+    obj_best, Gamma_best, lam = -Inf, -1., -1.
+
     for ix = 1:length(Gamma_grid)
-        xs, lam = x_l2reg(cs_unsc, muhat, vs, Gamma_grid[ix])
+        #use warm-start information
+        if ix == 1
+            xs[:], lam = x_l2reg_warm(cs_unsc, muhat, vs, Gamma_grid[ix])
+        else
+            xs[:], lam = x_l2reg_warm(cs_unsc, muhat, vs, Gamma_grid[ix], lambda_0=lam, Gamma_0=Gamma_grid[ix-1])
+        end
         objs[ix] = dot(muhat, xs)/n - reg_bias(cs_unsc, vs, muhat, lam, Gamma_grid[ix])
 
         if objs[ix] > obj_best
@@ -677,6 +687,7 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
             obj_best = objs[ix]
         end
     end    
+    @assert Gamma_best < Gamma_max "Gamma Grid too small"
     return x_l2reg(cs_unsc, muhat, vs, Gamma_best)[1], Gamma_grid, objs
 end
 
