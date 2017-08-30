@@ -124,7 +124,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			if includeReg
 				#weighted l2 regularization.  uses the oracle value for now
 				tic()
-				xs, Gamma_grid, objs = x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
+				xs, Gamma_grid, objs = x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n

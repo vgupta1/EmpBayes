@@ -447,7 +447,6 @@ function x_l2reg_warm(cs, muhat, vs, Gamma; lambda_0 = -1., Gamma_0 = Inf)
             end
         end
     end
-    println("Bracket:\t [$lb, $ub]")
     @assert f(lb) >= 1  "lb is incorrect in bracketing [$lb, $ub]"
     @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
 
@@ -489,27 +488,40 @@ function x_l2reg_CV_warm(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
     #an exhaustive search
-    best_val = -1.
+    #updated as we find better values
+    best_val, Gamma_hat, lam = -1., -1, -1
+    #preallocated for speed
     xhat = zeros(n)
     x_t = zeros(n)
-    Gamma_hat = -1;
-    objs = zeros(length(Gamma_grid))
+    objs = zeros(Gamma_grid)
+
+    #used in trying to end early    
+    sq_norm_u_vinv = mean(thetas.^2 .* vs)
+    thresh, len_grid = -Inf, length(Gamma_grid)
 
     for (ix, Gamma) in enumerate(Gamma_grid)
-        x_t[:] = x_l2reg(cs, muhat, vs, Gamma)[1]
+        if ix == 1
+            x_t[:], lam = x_l2reg_warm(cs, muhat, vs, Gamma)
+        else
+            x_t[:], lam = x_l2reg_warm(cs, muhat, vs, Gamma, lambda_0 = lam, Gamma_0=Gamma_grid[ix - 1])
+        end
+       #check if we can terminate early
+        if mean(x_t[:].^2 ./ vs) < thresh
+            len_grid = ix
+            break  #all future values of x will be too small
+        end
+
         objs[ix] = dot(thetas, x_t)/n
         if objs[ix] > best_val
             best_val = objs[ix]
             best_Gamma = Gamma
             xhat[:] = x_t
+            thresh = best_val^2 / sq_norm_u_vinv
         end
     end     
-    return xhat, Gamma_grid, objs
+    @assert Gamma_grid[indmax(objs)] < Gamma_max "Gamma_Grid too small."
+    return xhat, Gamma_grid[1:len_grid], objs[1:len_grid]
 end
-
-
-
-
 
 
 ### EB Optimization Approaches
