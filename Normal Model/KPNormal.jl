@@ -392,7 +392,8 @@ end
 
 #Solves the Regularization problem from a warm-start
 #If heuristic fails, reverts to solution above
-function x_l2reg_warm(cs, muhat, vs, Gamma; lambda_0 = -1., Gamma_0 = Inf)
+function x_l2reg_warm(cs, muhat, vs, Gamma; 
+                        lambda_0 = -1., Gamma_0 = Inf)
     const n = length(cs)
     #Find lambda by making knapsack tight
     sqrt_vmin = sqrt(minimum(vs))
@@ -422,16 +423,24 @@ function x_l2reg_warm(cs, muhat, vs, Gamma; lambda_0 = -1., Gamma_0 = Inf)
     end
 
     #Now look for a good bracket.  
-    ub, lb = 1., 0.
+    #Should have f(lb) > 1 >= f(ub)
+    lb, ub = 0., 1.
     if (Gamma_0 < Gamma) && (lambda_0 > 0)
         ub = lambda_0  #since decreasing
-        if f(lambda_approx) >= 1
+        if abs(f(ub) - 1.) <= 1e-10 #Just in case you nail it
+            return [g_j(Gamma, ub, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], ub
+        end            
+        if f(lambda_approx) > 1
             lb = lambda_approx
         else
             ub = min(lambda_approx, ub)
         end
     else #either Gamma_0 is bigger or wasn't set
         lb = max(0, lambda_0) #since decreasing
+        if abs(f(lb) - 1.) <= 1e-10  #Just in case you nail it
+            return [g_j(Gamma, lb, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lb
+        end
+
         if f(lambda_approx) <= 1
             ub = lambda_approx
         else
@@ -447,7 +456,16 @@ function x_l2reg_warm(cs, muhat, vs, Gamma; lambda_0 = -1., Gamma_0 = Inf)
             end
         end
     end
-    @assert f(lb) >= 1  "lb is incorrect in bracketing [$lb, $ub]"
+    if (f(ub) > 1 || f(lb) <= 1)
+        println("[$lb, $ub]")
+        println("Initial $(lambda_0) $Gamma_0")
+        println("Gamma $Gamma")
+        println("f(ub) $(f(ub)) $(f(ub) <=1)")
+        println("f(lb) $(f(lb)) $(f(lb) > 1)")
+        println("lambda_approx $lambda_approx")
+    end
+
+    @assert f(lb) > 1  "lb is incorrect in bracketing [$lb, $ub]"
     @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
 
     lamstar = fzero(lam -> f(lam) - 1, [lb, ub])

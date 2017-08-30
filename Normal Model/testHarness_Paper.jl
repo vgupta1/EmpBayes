@@ -124,7 +124,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			if includeReg
 				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
@@ -132,7 +132,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 
 				#Our Stein Approach to Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_max = 20.))
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
@@ -440,7 +440,8 @@ end
 
 #########
 n_grid = [2^i for i = 5:17]
-test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
+#test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
+test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
 
 #run some small examples to pre-compile for optimization
 # test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)
