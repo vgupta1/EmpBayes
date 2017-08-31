@@ -171,12 +171,10 @@ function threePartCLTExp(n, N)
 	return CLTExp(cs, thetas, vs, N)
 end
 
-
-
 function test_3PartCLT(file_out, numRuns, n, N_grid, seed)
 	srand(seed)
 	o = threePartCLTExp(n, N_grid[1])
-	file_name = "$(file_out)_3partCLT_$(seed).csv"
+	file_name = "$(file_out)_3partCLT_$_(n)_$(seed).csv"
 	f = open(file_name, "w")
 	test_CLTharness(f, numRuns, o, N_grid, includeReg=false)
 	close(f)
