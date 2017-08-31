@@ -120,7 +120,6 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
 			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
 
-
 			if includeReg
 				#Oracle Regularization
 				tic()

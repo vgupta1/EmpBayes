@@ -15,13 +15,13 @@ theta_h, v_h, c_h = ARGS[8:10]
 
 tic()
 a = @spawn test_threePart(spath, numRuns, n_grid, 8675309000, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), false)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
 b = @spawn test_threePart(spath, numRuns, n_grid, 5164174290, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), false)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
 c = @spawn test_threePart(spath, numRuns, n_grid, 5167462266, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), false)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
 d = @spawn test_threePart(spath, numRuns, n_grid, 123456, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), false)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
 ######
 file_a = fetch(a)
 file_b = fetch(b)
