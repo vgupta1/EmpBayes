@@ -13,7 +13,6 @@ function sim!(o, muhat)
 	muhat[:] = randn!(muhat) ./ sqrt(o.vs) + o.thetas
 end
 
-
 ######################
 ####
 #For increasing n, many simulations compare
@@ -199,8 +198,38 @@ function test_OddEven(file_out, numRuns, n_grid, seed, even_v;
 	return file_name
 end
 
+### The three parts experimental set-up
+function test_threePart(file_out, numRuns, n_grid, seed, 
+						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h, includeReg)
+	srand(seed)
+	const n_max = maximum(n_grid)
+	cs = ones(n_max)
+	thetas = ones(n_max)
+	vs = ones(n_max)
 
-### The multiple Gamma Setup
+	thetas[1:3:n_max] = theta_l
+	vs[1:3:n_max] = v_l
+	cs[1:3:n_max] = c_l
+
+	thetas[2:3:n_max] = theta_m
+	vs[2:3:n_max] = v_m
+	cs[2:3:n_max] = c_m
+
+	thetas[3:3:n_max] = theta_h
+	vs[3:3:n_max] = v_h
+	cs[3:3:n_max] = c_h
+
+	o = DefaultExp(cs, thetas, vs)
+	file_name = "$(file_out)_3part_$(theta_l)_$(v_l)_$(c_l)_$(theta_m)_$(v_m)_$(c_m)_$(theta_h)_$(v_h)_$(c_h)_$(seed).csv"
+	f = open(file_name, "w")
+	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)
+	close(f)
+	return file_name
+end
+
+
+### A by-hand testing multiple Gamma values and their convergence
+# to the true oracle
 function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
 						even_theta = 1., even_v = 2, frac_fit = .1)
 	srand(seed)
@@ -242,217 +271,13 @@ function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
 end
 
 
-### The three parts experimental set-up
-function test_threePart(file_out, numRuns, n_grid, seed, 
-						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h, includeReg)
-	srand(seed)
-	const n_max = maximum(n_grid)
-	cs = ones(n_max)
-	thetas = ones(n_max)
-	vs = ones(n_max)
-
-	thetas[1:3:n_max] = theta_l
-	vs[1:3:n_max] = v_l
-	cs[1:3:n_max] = c_l
-
-	thetas[2:3:n_max] = theta_m
-	vs[2:3:n_max] = v_m
-	cs[2:3:n_max] = c_m
-
-	thetas[3:3:n_max] = theta_h
-	vs[3:3:n_max] = v_h
-	cs[3:3:n_max] = c_h
-
-	o = DefaultExp(cs, thetas, vs)
-	file_name = "$(file_out)_3part_$(theta_l)_$(v_l)_$(c_l)_$(theta_m)_$(v_m)_$(c_m)_$(theta_h)_$(v_h)_$(c_h)_$(seed).csv"
-	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)
-	close(f)
-	return file_name
-end
-
-# ### The Gamma Test
-# function test_Gamma(file_out, numRuns, n_grid, seed, alpha, beta)
-# 	o = GammaExp(seed, alpha, beta, maximum(n_grid))
-
-# 	f = open("$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv", "w")
-# 	test_harness(f, numRuns, o, n_grid)
-# 	close(f)
-# 	return "$(file_out)_Gamma_$(alpha)_$(beta)_$(seed).csv"
-# end
-
-# ### The Uniform Test
-# function test_Uniform(file_out, numRuns, n_grid, seed, a, b)
-# 	o = UniformExp(seed, a, b, maximum(n_grid))
-
-# 	f = open("$(file_out)_Uniform_$(a)_$(b)_$(seed).csv", "w")
-# 	test_harness(f, numRuns, o, n_grid)
-# 	close(f)
-# 	return "$(file_out)_Uniform_$(a)_$(b)_$(seed).csv"
-# end
-
-# ### The Beta Test
-# function test_Beta(file_out, numRuns, n_grid, seed, a, b)
-# 	o = BetaExp(seed, a, b, maximum(n_grid))
-
-# 	f = open("$(file_out)_Beta_$(a)_$(b)_$(seed).csv", "w")
-# 	test_harness(f, numRuns, o, n_grid)
-# 	close(f)
-# 	return "$(file_out)_Beta_$(a)_$(b)_$(seed).csv"
-# end
-
-# ### The Beta Test
-# function test_UniformLikelihood(numRuns, n_grid, seed, theta_high, width_low, width_high, lamp)
-# 	o = UniformLikelihoodExp(seed, theta_high, 1., width_high, width_low, maximum(n_grid), lamp)
-# 	f = open("UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv", "w")
-# 	test_harness(f, numRuns, o, n_grid)
-# 	close(f)
-# 	return "UniformLikelihood_$(theta_high)_$(width_high)_$(width_low)_$(lamp)_$(seed).csv"
-# end
-
-# function test_CLTExp(file_out, numRuns, n_grid, seed, N, width_max)
-# 	o = CLTExp(seed, width_max, maximum(n_grid), N)
-# 	tag = "$(file_out)CLTExp_$(N)_$(width_max)_$(seed).csv"
-# 	f = open(tag, "w")
-# 	test_harness(f, numRuns, o, n_grid)
-# 	close(f)
-# 	return tag
-# end
-
-
-# function threePartExp(seed::Integer, n_max::Integer, theta_l, v_l, theta_h, v_h, frac_fit = .1)
-# 	srand(seed)
-# 	cs = 1./frac_fit * ones(n_max)
-# 	thetas = ones(n_max)
-# 	vs = ones(n_max)
-# 	thetas[1:3:n_max] = theta_l
-# 	vs[1:3:n_max] = v_l
-# 	thetas[3:3:n_max] = theta_h
-# 	vs[3:3:n_max] = v_h
-
-# 	noise = zeros(n_max)
-# 	DefaultExp(cs, thetas, vs, noise)
-# end
-
-# #Following simulates N rvs according to the given distributions
-# #AS N increases, this should approximately have gaussian likelihood
-# #dists should be mean zero.
-# type CLTExp
-# 	cs
-# 	vs
-# 	thetas
-# 	dists  #should be a mean zero r.v. 
-# 	N
-# end
-
-#thetas /vs follow the three pt experiment
-#width calculated accordingly
-#Obsservations are uniform, centered on theta with width
-# function CLTExp(seed::Integer, width_max, n_max, N; frac_fit = .1)
-# 	srand(seed)
-# 	@assert rem(N, 2) == 0
-# 	cs = 1./frac_fit * ones(n_max)
-# 	thetas = ones(n_max)
-# 	vs = ones(n_max)
-# 	thetas[1:3:n_max] = .01
-# 	vs[1:3:n_max] = .01
-# 	thetas[3:3:n_max] = 1.5
-# 	vs[3:3:n_max] = .1
-
-# 	widths = sqrt(12 ./ vs)
-
-# 	# widths = rand(n_max) * width_max + .1
-# 	# vs = 12 ./ widths.^2
-# 	# thetas = randn(n_max) ./ sqrt(tau0)
-
-# 	dists = Array(Distributions.Uniform, n_max)
-# 	for ix = 1:n_max
-# 		dists[ix] = Uniform(-widths[ix]/2, widths[ix]/2 )
-# 	end
-# 	CLTExp(cs, vs, thetas, dists, N)
-# end
-
-# function sim!(o::CLTExp, xs, ys, muhat)	
-# 	const n_max = length(o.cs)
-# 	zetas = zeros(o.N)
-# 	const half_N = round(Int, o.N/2)
-# 	for ix = 1:n_max
-# 		rand!(o.dists[ix], zetas)
-# 		xs[ix] = mean(zetas[1:half_N]) * sqrt(half_N) + o.thetas[ix]
-# 		ys[ix] = mean(zetas[(half_N + 1):o.N]) * sqrt(half_N) + o.thetas[ix]
-# 		muhat[ix] = mean(zetas) * sqrt(o.N) + o.thetas[ix]
-# 	end
-# end
-
-# function NormalBayesExp(seed::Integer, tau0, n_max; mu0 = 0., frac_fit=.1, avg_tau=tau0)
-# 	srand(seed)
-# 	cs = rand(n_max) * 2./frac_fit   
-# 	vs = 2. * avg_tau * rand(n_max)
-# 	NormalBayesExp(cs, vs, zeros(n_max), zeros(n_max), tau0, mu0)
-# end
-
-# #cs vs remain fixed but thetas change
-# function sim!(o::NormalBayesExp, x, y, z)
-# 	randn!(o.thetas) 
-# 	o.thetas /= sqrt(o.tau0)
-# 	o.thetas += o.mu0
-# 	simData!(o, x, y, z)
-# end
 
 
 
 
 
-#######
-# A by-hand test for bandwidths and reg parameters
-# o is assumed pre-initialized
-# function test_bandwidth(file_out, numRuns, o)
-# 	const n = length(o.thetas)
-# 	xs = zeros(Float64, n)
-# 	ys = zeros(Float64, n)
-# 	muhat = zeros(Float64, n)
-
-# 	f = open(file_out, "w")
-# 	writecsv(f, ["Run" "n" "Method" "bandwidth" "thetaVal" "tau0"])
-# 	bandwidths = linspace(-1, -.001, 30)
-# 	#regs = linspace(.05, 5, 15)
-
-# 	for iRun = 1:numRuns
-# 		sim!(o, xs, ys, muhat)
-
-# 		for h in bandwidths
-# 			xs, vals, objs = KP.x_stein_box(o.cs, muhat, o.vs, n^h, KP.box, tau_step = .1)
-# 			thetaval = dot(o.thetas, xs)/n
-# 			writecsv(f, [iRun n "Box" h thetaval vals[indmax(objs)]])
-
-# 			xs, vals, objs = KP.x_stein_box(o.cs, muhat, o.vs, n^h, KP.gauss, tau_step = .1)
-# 			thetaval = dot(o.thetas, xs)/n
-# 			writecsv(f, [iRun n "Gauss" h thetaval vals[indmax(objs)]])
-
-# 			xs, vals, objs = KP.x_stein_box(o.cs, muhat, o.vs, n^h, sinc, tau_step = .1)
-# 			thetaval = dot(o.thetas, xs)/n
-# 			writecsv(f, [iRun n "Sinc" h thetaval vals[indmax(objs)]])
-# 		end
-# 	end
-# 	close(f)
-# end
-
+########################################################
 #########
 n_grid = [2^i for i = 5:17]
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
 test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
-
-#run some small examples to pre-compile for optimization
-# test_threePart("./temp/tempThreePart", 5, [100, 150], 876, .01, .01, 1.5, .1)
-# test_CLTExp("./temp/tempCLT", 5, [100, 150], 86, 10, 2)
-# test_OddEven("./temp/temp_OddEven", 5,[100, 150], 87, 2, 2)
-
-
-# test_Gamma("./temp/temp_Gamma", 5, [100, 150], 87, 1., 1.)
-# test_Uniform("./temp/temp_Uniform", 5, [100, 150], 87, 1, 2)
-# test_Beta("./temp/temp_Beta", 5, [100, 150], 87, .5, .5)
-# test_bandwidth("./temp/tempbandwidth", 10, NormalBayesExp(8675309, 3, 100))
-
-# #The counterexample
-# n_grid = [2^i for i = 8:20]
-# test_UniformLikelihood(2, [100, 150], 8675309, 10., 15., 1., 14.1)
