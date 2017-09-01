@@ -705,7 +705,7 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
             obj_best = objs[ix]
         end
     end    
-    @assert Gamma_best < Gamma_max "Gamma Grid too small"
+    Gamma_best >= Gamma_max-1e-10 && "Gamma Grid too small $Gamma_min $Gamma_max"
     return x_l2reg(cs_unsc, muhat, vs, Gamma_best)[1], Gamma_grid, objs
 end
 
