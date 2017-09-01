@@ -537,7 +537,7 @@ function x_l2reg_CV_warm(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1
             thresh = best_val^2 / sq_norm_u_vinv
         end
     end     
-    @assert Gamma_grid[indmax(objs)] < Gamma_max "Gamma_Grid too small."
+    Gamma_grid[indmax(objs)] > Gamma_max && println("Gamma_Grid too small")
     return xhat, Gamma_grid[1:len_grid], objs[1:len_grid]
 end
 
