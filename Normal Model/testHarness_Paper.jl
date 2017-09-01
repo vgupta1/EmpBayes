@@ -135,6 +135,14 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
+
+				#Stein Appraoch with Bounds
+				tic()
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min = 10., Gamma_max = 20.)
+				t = toc()
+				Gammahat = Gamma_grid[indmax(objs)]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "SteinRegBnded" thetaval t Gammahat])
 			end
 
 			# #The primal stein approach
