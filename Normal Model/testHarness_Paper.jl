@@ -32,6 +32,7 @@ end
 function test_harness(f, numRuns, o, n_grid; includeReg=true)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
+	noise = zeros(Float64, n_max)
 
 	#write a header
 	writecsv(f, ["Run" "n" "Method" "thetaVal" "time" "tau0"])
@@ -39,6 +40,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
 		sim!(o, muhat)
+		noise[:] = randn!(noise) ./ sqrt(o.vs)
 
 		for n in n_grid
 			#Compute performance of each method
@@ -143,6 +145,35 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinRegBnded" thetaval t Gammahat])
+
+				#RO heuristic for Gamma
+				#eps = .1				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.563103)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "RO_Eps_.1" thetaval t 2.563103])
+
+				#eps = .05				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 3.289707)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "RO_Eps_.05" thetaval t 3.289707])
+
+				#eps = .01				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 4.652696)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 4.652696])
+
+				#Leave one out validation (LOO)
+				tic()
+				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs[1:n], muhat[1:n] + noise[1:n], muhat[1:n] - noise[1:n], o.vs[1:n])
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "LOO" thetaval t Gamma_grid[indmax(objs)]])
 			end
 
 			# #The primal stein approach

@@ -358,6 +358,7 @@ function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
 end
 
 #cs are unscaled (each element order unity)
+#returns xs, lam
 function x_l2reg(cs, muhat, vs, Gamma)
     const n = length(cs)
 
@@ -709,6 +710,18 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
     return x_l2reg(cs_unsc, muhat, vs, Gamma_best)[1], Gamma_grid, objs
 end
 
+function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
+    #VG What is the nice way to do this?
+    xs1, Gamma_grid, objs1 = x_l2reg_CV(cs_unsc, muhat1, vs, muhat2, 
+                        Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+    xs2, Gamma_grid, objs2 = x_l2reg_CV(cs_unsc, muhat2, vs, muhat1, 
+                        Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 
+    objs = .5 .* (objs1 + objs2)
+    Gamma_best = Gamma_grid[indmax(objs)]
+    Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small $Gamma_min $Gamma_max")
+
+    return x_l2reg(cs_unsc, .5 .* (muhat1 + muhat2), vs, Gamma_best)[1], Gamma_grid, objs
+end
 
 end #ends module
