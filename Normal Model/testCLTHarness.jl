@@ -64,49 +64,49 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			xs = KP.x(o.cs, muhat)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "SAA" thetaval t 0.])
+			writecsv(f, [iRun N "SAA" thetaval t 0.])
 
 			#fullInfo val
 			tic()
 			xs = x(o.cs, o.thetas)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
+			writecsv(f, [iRun N "FullInfo" thetaval t 0.])
 
 			#Tau MLE
 			tic()
 			tauMLE, xs = x_MLE(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "EB_MLE" thetaval t tauMLE])
+			writecsv(f, [iRun N "EB_MLE" thetaval t tauMLE])
 
 			#Tau MM
 			tic()
 			tauMM, xs = x_MM(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "EB_MM" thetaval t tauMM])
+			writecsv(f, [iRun N "EB_MM" thetaval t tauMM])
 
 			#Oracle MSE
 			tic()
 			xs, tau_CV = x_OR_MSE(o.cs, muhat, o.thetas, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "OR_MSE" thetaval t tau_CV])
+			writecsv(f, [iRun N "OR_MSE" thetaval t tau_CV])
 
 			#Sure MSE
 			tic()
 			xs, tau_CV = x_sure_MSE(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
+			writecsv(f, [iRun N "SURE_MSE" thetaval t tau_CV])
 
 			#Dirac Stein
 			tic()
 			xs, vals, objs = x_stein_exact(o.cs, muhat, o.vs, o.thetas)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "DiracStein" thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun N "DiracStein" thetaval t vals[indmax(objs)]])
 
 			#Box with the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
@@ -114,7 +114,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			xs, vals, objs = x_stein_box(o.cs, muhat, o.vs, h, tau_step = .05)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "BoxStein" thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun N "BoxStein" thetaval t vals[indmax(objs)]])
 
 			#Oracle Value
 			tic()
@@ -122,7 +122,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
 			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
-			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
+			writecsv(f, [iRun N "OR" thetaval t vals[indmax(objs)]])
 
 			if includeReg
 				#Oracle Regularization
@@ -131,7 +131,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+				writecsv(f, [iRun N "OracleReg" thetaval t Gammahat])
 
 				#Our Stein Approach to Regularization
 				tic()
@@ -139,7 +139,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
+				writecsv(f, [iRun N "SteinReg" thetaval t Gammahat])
 			end
 
 		end
