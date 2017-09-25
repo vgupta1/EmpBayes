@@ -267,6 +267,28 @@ function test_threePart(file_out, numRuns, n_grid, seed,
 end
 
 
+###  Reads in a theta/cs/vs specification
+function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
+						includeReg = true)
+	srand(8675309)
+	const n_max = maximum(n_grid)
+	dat, header = readcsv(param_path, header=true)
+	println(size(dat))
+
+
+	#confirm that n_max works
+	@assert n_max <= size(dat, 1) "Param file too short for n_max"
+
+	o = DefaultExp(dat[1:n_max, 3], dat[1:n_max, 1], dat[1:n_max, 2])
+	file_name = "$(file_out)_$(seed).csv"
+	f = open(file_name, "w")
+	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)
+	close(f)
+	return file_name	
+end
+
+
+
 ### A by-hand testing multiple Gamma values and their convergence
 # to the true oracle
 function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
@@ -311,12 +333,9 @@ end
 
 
 
-
-
-
-
 ########################################################
 #########
 n_grid = [2^i for i = 5:17]
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
-test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
+#test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
+test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")
