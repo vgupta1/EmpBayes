@@ -270,7 +270,7 @@ end
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
 						includeReg = true)
-	srand(8675309)
+	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
 	println(size(dat))
@@ -278,8 +278,14 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 
 	#confirm that n_max works
 	@assert n_max <= size(dat, 1) "Param file too short for n_max"
+	cs = dat[1:n_max, 3]
+	thetas = dat[1:n_max, 1]
+	vs = dat[1:n_max, 2]
 
-	o = DefaultExp(dat[1:n_max, 3], dat[1:n_max, 1], dat[1:n_max, 2])
+	#rescale cs so budget is sensible. 
+	cs /= quantile(cs, .2)
+
+	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
 	f = open(file_name, "w")
 	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)

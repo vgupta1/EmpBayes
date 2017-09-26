@@ -78,11 +78,10 @@ dat %>% group_by(type) %>%
 #Try a .4 (for symmetry) for now
 
 #do a linear interpolation?
-v_fun <- approxfun(c(0, .2, 1), 
-            c(1/.4^2, 1./01^2, 1/.4^2))
+v_fun <- approxfun(c(0, .5, 1), 
+            c(1/.4^2, 1./.1^2, 1/.4^2))
 
 dat <- dat %>% mutate(vs = v_fun(ratio_rank))
-ggplot(dat, aes(x=ratio, y=vs)) + geom_point()
 
 ## compute a realization of muhat
 dat <- dat %>% mutate(muhat = thetas + rnorm(nrow(dat)/ sqrt(vs)))
@@ -90,11 +89,22 @@ dat <- dat %>% mutate(ratio_noisy = muhat/c)
 
 #sanity check, compute the values for SAA, random and and full-info
 mean(dat$ratio)
-quantile(dat$ratio, .95)
+quantile(dat$ratio, .8)
 
 #What is the true distribution among SAA
-dat %>% filter(ratio_noisy > quantile(dat$ratio_noisy, .95)) %>%
-  group_by(type) %>% summarise(n()/6554)
+dat %>% filter(ratio_noisy > quantile(dat$ratio_noisy, .8)) %>%
+  group_by(type) %>% summarise(n()/26214)
+
+dat %>% filter(ratio_noisy > quantile(dat$ratio_noisy, .8)) %>%
+  summarise(mean(ratio))
+
+
+dat %>%
+  filter(ratio_noisy > 0) %>%
+  ggplot(aes(ratio, ratio_noisy, color=type)) + 
+    geom_point(alpha = .5, size = 1) + 
+  xlim(0, 4)
+
   
 # dat %>% select(thetas, vs, c) %>%
 #   write_csv("../Results/param_portExp_Linear_.5.csv")
