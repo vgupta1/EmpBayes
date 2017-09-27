@@ -13,7 +13,9 @@ dat$Method = as.factor(dat$Method)
 #mark the true one as solid... everyone else is dashed
 dat <- dat %>% mutate(isApprox = !Method == "Target")
 
-g1<- dat %>% filter(!str_detect(Method, "NonU.*")) %>%
+g1<- dat %>% 
+  filter(Method %in% 
+           c("Target", "NonUniform1", "NonUniform3", "NonUniform5"))  %>%
   ggplot(aes(x_val, val, group=Method, color=Method)) +
   geom_line(aes(linetype=isApprox)) + 
   xlab("") + ylab("") + 
@@ -23,7 +25,9 @@ g1<- dat %>% filter(!str_detect(Method, "NonU.*")) %>%
         legend.position="none") + 
   ylim(-10, 30)
 
-g2<- dat %>% filter(str_detect(Method, "NonU.*") | Method=="Target") %>%
+g2<- dat %>% 
+  filter(Method %in% 
+           c("Target", "Uniform1", "Uniform3", "Uniform5"))  %>%
   ggplot(aes(x_val, val, group=Method, color=Method)) +
   geom_line(aes(linetype=isApprox)) + 
   xlab("") + ylab("") + 
@@ -32,6 +36,7 @@ g2<- dat %>% filter(str_detect(Method, "NonU.*") | Method=="Target") %>%
   theme(text=element_text(family=font), 
         legend.position="none") + 
   ylim(-10, 30)
+
 
 ggsave("../../Normal Model/../../../OR Submission_1/Figures/UniformApprox1.pdf", 
        g1, width=3.25, height=3.25, units="in")
