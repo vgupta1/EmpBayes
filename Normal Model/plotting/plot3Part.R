@@ -2,21 +2,22 @@
 library(tidyverse)
 library(ggplot2)
 library(forcats)
-library(extrafont)
-#font = "Times New Roman"
-font = "CM Roman"
 
-##Need to rerun boht of these with new plots inlcuding the regression values
+# library(extrafont)
+# font = "Times New Roman"
+# font = "CM Roman"
 
+library(showtext)
+font_add("Times New Roman", "Times New Roman.ttf")
+showtext_auto()
+font = "Times New Roman"
+
+#Decided to only use the alpha = .05 values for the paper so this is unnecessary
 # dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_10.001_1.0_1.0_10.001_0.3_4.0_10.001_8675309000.csv_full_200.csv")
 # spath = "../../../../OR Submission_1/Figures/3Part10.pdf"
 
 dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
 spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
-
-#### Temp
-#dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_40.0_20.0001_8675309000.csv_full_40.csv")
-
 dat$Method = as.factor(dat$Method)
 
 #Reorder the levels in place to make plots consistent.
@@ -27,7 +28,7 @@ dat <- mutate(dat, Method = fct_relevel(Method,
 
 #Create a new column of "pretty" labels
 dat <- mutate(dat, Label = fct_recode(Method, 
-                    `EB Opt` = "BoxStein", 
+                    `EB OPT` = "BoxStein", 
                     `EB Opt Dirac` = "DiracStein", 
                     `EB MLE` = "EB_MLE", 
                     `EB MM` = "EB_MM", 
@@ -55,7 +56,7 @@ dat.sum <- dat %>% group_by(n, Method) %>%
                       down = quantile(Ratio, .1))
 dat.sum <- mutate(dat.sum, 
                   Label = fct_recode(Method, 
-                                     `EB Opt` = "BoxStein", 
+                                     `EB OPT` = "BoxStein", 
                                      `EB Opt Dirac` = "DiracStein", 
                                      `EB MLE` = "EB_MLE", 
                                      `EB MM` = "EB_MM", 
@@ -65,22 +66,48 @@ dat.sum <- mutate(dat.sum,
                   )
 
 pd = position_dodge(.3)
+
+#A Bigger version for the appendix
 g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "EB_MM", "BoxStein", "SURE_MSE", "SAA")) %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
   geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
   theme_minimal(base_size=11) +
-  theme(legend.position = c(.5, .1), 
+  theme(legend.position = c(.7, .4), 
         legend.title=element_blank(), 
         text=element_text(family=font), 
         legend.direction = "horizontal", 
         legend.justification = "center") + 
   scale_x_log10(labels=scales::comma) + 
-  scale_y_continuous(labels=scales::percent, limits=c(-.15, 1)) +
+  scale_y_continuous(labels=scales::percent) +
   ylab("(%) of Full-Info")
 g
 
+spath = "../../../../OR Submission_1/Figures/3Part20Big.pdf"
+ggsave(spath, 
+       g, width=6, height=3.25, units="in")
+
+
+#A small version for the paper
+g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "BoxStein", "SURE_MSE", "SAA")) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
+  theme_minimal(base_size=11) +
+  theme(legend.position = c(.65, .3), 
+        legend.title=element_blank(), 
+        text=element_text(family=font), 
+        legend.text=element_text(size=8),
+        legend.direction = "horizontal", 
+        legend.justification = "center") + 
+  scale_x_log10(labels=scales::comma) + 
+  scale_y_continuous(labels=scales::percent) +
+  ylab("(%) of Full-Info") +
+  guides(shape=guide_legend(nrow=3, byrow=TRUE))
+g
+spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
 ggsave(spath, 
        g, width=3.25, height=3.25, units="in")
 
@@ -113,6 +140,8 @@ g1 <- g1 + theme(legend.position="none") +
               aes(x, y, label=Method), 
               family=font, 
               size=3, hjust="c", vjust="m")
+g1 <- g1 + xlab(expression(tau))
+
 
 ggsave("../../../../OR Submission_1/Figures/3PartTaus.pdf", 
        g1, width=3.25, height=3.25, units="in")
@@ -121,6 +150,7 @@ ggsave("../../../../OR Submission_1/Figures/3PartTaus.pdf",
 ######
 ##Plot the relative densities
 #######
+library(gridExtra)
 dat = read_csv("../Results/3PartDensities_131072_20.00001.csv")
 dat <- dat %>% mutate(Type=as.factor(mu), 
                       Type = fct_recode(Type, 
@@ -149,7 +179,7 @@ props_table <-
 
 g<- g + annotation_custom(tableGrob(props_table, rows=NULL, 
                                 theme=ttheme_minimal(base_size=8)), 
-                      xmin=5, xmax=12, ymin=.5, ymax=.75)
+                      xmin=7, xmax=12, ymin=.5, ymax=.75)
 
 ggsave("../../../../OR Submission_1/Figures/3PartDensitySAA.pdf", 
        g, width=3.25, height=3.25, units="in")
@@ -183,17 +213,34 @@ ggsave("../../../../OR Submission_1/Figures/3PartDensityOr.pdf",
        g, width=3.25, height=3.25, units="in")
 
 
-###  Single plot with dependence in tau
-dat = read_csv("../Results/tauDependence.csv")
-g<- dat %>% 
-  ggplot(aes(tau, thetaVal)) + 
-  geom_point() + geom_line() + 
-  theme_minimal(base_size=11) +
-  theme(text=element_text(family=font, size=11)) + 
-  xlab("Tau") + ylab("Obj.")
 
-ggsave("../../../../OR Submission_1/Figures/3PartTauDep.pdf", 
+###Finally do TauMLE
+g <- dat %>%
+  ggplot(aes(rMLE, fill=Type)) +
+  geom_density(linetype="blank", alpha=.5) + 
+  geom_vline(xintercept = quantile(dat$rMLE, .95), 
+             linetype="dotted") +
+  xlab("") + ylab("") + 
+  theme_minimal(base_size=11) +
+  theme(legend.title=element_blank(), 
+        text = element_text(family=font), 
+        legend.position=c(.2,.8))
+
+props_table <-
+  tribble(
+    ~Type, ~Percent,
+    "Low",  "0.0%",     
+    "Med",  "59.4%",
+    "High", "40.6%"
+  )
+
+g<- g + annotation_custom(tableGrob(props_table, rows=NULL, 
+                                    theme=ttheme_minimal(base_size=8)), 
+                          xmin=.7, xmax=1, ymin=4, ymax=6)
+
+ggsave("../../../../OR Submission_1/Figures/3PartDensityMLE.pdf", 
        g, width=3.25, height=3.25, units="in")
+
 
 
 #####  Single Plot with dependence in Gamma
@@ -203,7 +250,7 @@ g<- dat %>%
   geom_point() + geom_line() + 
   theme_minimal(base_size=11) +
   theme(text=element_text(family=font, size=11)) + 
-  xlab("Gamma") + ylab("Obj.")
+  xlab(expression(Gamma)) + ylab("Objective")
 
 ggsave("../../../../OR Submission_1/Figures/3PartGammaDep.pdf", 
        g, width=3.25, height=3.25, units="in")

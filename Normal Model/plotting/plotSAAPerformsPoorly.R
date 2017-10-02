@@ -11,10 +11,13 @@ font = "CM Roman"
 #Swithced to using this one to include the regularization on the plot
 dat = read_csv("../Results/SAA_Plot__OddEven_1.0_2.1_8675309000.csv_full_204.csv")
 # dat = read_csv("../Results/SAA_Plot__OddEven_1.0_2.0_8675309000.csv_full_200.csv")
-#spath = "../../../../OR Submission_1/Figures/SAA1.pdf"
+spath = "../../../../OR Submission_1/Figures/SAA1.pdf"
+
+dat <- dat %>% filter(Run <= 200)
+
 
 #dat = read_csv("../Results/SAA_Plot__OddEven_1.0_5.0_8675309000.csv_full_200.csv")
-# spath = "../../../../OR Submission_1/Figures/SAA2.pdf"
+#spath = "../../../../OR Submission_1/Figures/SAA2.pdf"
 
 #TEMP not meant to be saved
 #Being used to get a sense of hte oracle regularization parameter
@@ -78,8 +81,6 @@ dat %>% filter(Method =="OracleReg") %>%
 
 # End Temp
 ##############
-
-
 
 pd = position_dodge(.2)
 g <- dat.sum %>% filter(Method %in% c("SAA", "EB Opt", "Stein Reg")) %>%

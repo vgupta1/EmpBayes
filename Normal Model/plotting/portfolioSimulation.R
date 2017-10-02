@@ -109,7 +109,4 @@ dat %>%
 # dat %>% select(thetas, vs, c) %>%
 #   write_csv("../Results/param_portExp_Linear_.5.csv")
 
-dat %>% select(thetas, vs, c) %>%
-  write_csv("../Results/param_portExp_Linear_.2.csv")
-
 
