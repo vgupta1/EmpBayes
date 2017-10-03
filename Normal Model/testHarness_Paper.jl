@@ -96,7 +96,6 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
 
-
 			#Dirac Stein
 			tic()
 			xs, vals, objs = x_stein_exact(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
@@ -104,7 +103,6 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "DiracStein" thetaval t vals[indmax(objs)]])
 
-			#The stein approach with various kernels
 			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling, altKernel
 			h = n^-.16666
 			tic()
@@ -273,8 +271,6 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
-	println(size(dat))
-
 
 	#confirm that n_max works
 	@assert n_max <= size(dat, 1) "Param file too short for n_max"
@@ -342,6 +338,7 @@ end
 ########################################################
 #########
 n_grid = [2^i for i = 5:17]
+#small run for pre-compilation
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
 #test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
 test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")

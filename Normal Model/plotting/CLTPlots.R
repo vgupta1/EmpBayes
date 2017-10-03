@@ -2,8 +2,9 @@
 library(tidyverse)
 library(ggplot2)
 library(forcats)
+
 library(extrafont)
-#font = "Times New Roman"
+font = "Times New Roman"
 font = "CM Roman"
 
 dat = read_csv("../Results/3PartCLT_plot__3partCLT_65536_8675309.csv_full_200.csv")
@@ -19,8 +20,8 @@ dat <- mutate(dat, Method = fct_relevel(Method,
 
 #Create a new column of "pretty" labels
 dat <- mutate(dat, Label = fct_recode(Method, 
-                                      `EB Opt` = "BoxStein", 
-                                      `EB Opt Dirac` = "DiracStein", 
+                                      `EB OPT` = "BoxStein", 
+                                      `EB OPT Dirac` = "DiracStein", 
                                       `EB MLE` = "EB_MLE", 
                                       `EB MM` = "EB_MM", 
                                       `MSE OR`= "OR_MSE", 
@@ -28,7 +29,7 @@ dat <- mutate(dat, Label = fct_recode(Method,
                                       `EB SURE` = "SURE_MSE")
 )
 
-#Re-express everything as a fractin of full-info
+#Re-express everything as a fraction of full-info
 t <- dat %>% filter(Method == "FullInfo") %>%
   select(Run, N, thetaVal)
 
@@ -39,24 +40,13 @@ dat <- inner_join(dat, t, by=c("Run", "N")) %>%
 
 
 #Summarize the data across runs
-dat.sum <- dat %>% group_by(N, Method) %>%
+dat.sum <- dat %>% group_by(N, Method, Label) %>%
   summarise(avg = mean(Ratio), 
             avgTau0 = mean(tau0), 
             std  = sd(Ratio), 
             stdTau0 = sd(tau0), 
             up = quantile(Ratio, .9), 
             down = quantile(Ratio, .1))
-
-dat.sum <- mutate(dat.sum, 
-                  Label = fct_recode(Method, 
-                                     `EB Opt` = "BoxStein", 
-                                     `EB Opt Dirac` = "DiracStein", 
-                                     `EB MLE` = "EB_MLE", 
-                                     `EB MM` = "EB_MM", 
-                                     `MSE OR`= "OR_MSE", 
-                                     `EB OR` = "OR", 
-                                     `EB SURE` = "SURE_MSE")
-)
 
 pd = position_dodge(.3)
 g <- dat.sum %>% filter(Method %in% c("BoxStein", "OR")) %>%
