@@ -1,5 +1,5 @@
 include("KPNormal.jl")
-using KP
+using KP, Distributions
 
 ########################################################
 ###
@@ -10,6 +10,7 @@ type CLTExp
 	thetas
 	vs
 	N
+	dist
 end
 
 #Simulates by drawing N uniform obs, and scaling by sqrt N
@@ -18,8 +19,8 @@ function sim!(o::CLTExp, muhat)
 	#Shift and scale so that after loop, 
 	#muhat is standard noise
 	#mean of uniform is .5, and precision = 12
-	const shift = .5
-	const scale = sqrt(12/o.N)
+	const shift = mean(o.dist)#.5
+	const scale = 1/ std(o.dist) / sqrt(o.N)  #sqrt(12/o.N)
 	const n = length(o.cs)
 	for k = 1:o.N
 		muhat[:] += (rand(n) - shift) * scale
@@ -147,7 +148,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 	end
 end
 
-function threePartCLTExp(n, N)
+function threePartCLTExp(n, N, dist)
 	cs = ones(n)
 	thetas = ones(n)
 	vs = ones(n)
@@ -168,12 +169,24 @@ function threePartCLTExp(n, N)
 	vs[3:3:n] = v_h
 	cs[3:3:n] = c_h
 
-	return CLTExp(cs, thetas, vs, N)
+	return CLTExp(cs, thetas, vs, N, dist)
 end
 
-function test_3PartCLT(file_out, numRuns, n, N_grid, seed)
+function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
 	srand(seed)
-	o = threePartCLTExp(n, N_grid[1])
+	if dist_type == :uniform
+		dist = Uniform()
+	elseif dist_type == :bernoulli
+		dist = Bernoulli(.5)
+	elseif dist_type == :exponential
+		dist = Exponential()
+	elseif dist_type == :t
+		dist = TDist(3)
+	else
+		throw()
+	end
+
+	o = threePartCLTExp(n, N_grid[1], dist)
 	file_name = "$(file_out)_3partCLT_$(n)_$(seed).csv"
 	f = open(file_name, "w")
 	test_CLTharness(f, numRuns, o, N_grid, includeReg=true)
@@ -185,7 +198,7 @@ end
 #########
 N_grid = collect(1:10)
 #Small run for pre0compilation
-test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309)
+test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, :uniform)
 
 
 

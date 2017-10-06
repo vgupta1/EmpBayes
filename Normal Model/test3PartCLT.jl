@@ -5,7 +5,7 @@
 
 spath = "./Results/3PartCLT_plot"
 N_grid = collect(1:10)
-const n = 2^16
+const n = 2^17
 numRuns = parse(Int, ARGS[1])
 
 tic()

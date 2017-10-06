@@ -503,7 +503,8 @@ end
 
 
 ## Uses warm-start information to solve and clever bounds on Gamma OR
-function x_l2reg_CV_warm(cs, muhat, vs, thetas; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
+function x_l2reg_CV_warm(cs, muhat, vs, thetas; 
+                    Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     const n = length(muhat)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
