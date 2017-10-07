@@ -715,10 +715,10 @@ end
 function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; Gamma_step = .01, Gamma_min = .1, 
                                                 Gamma_max = 10)
     #VG What is the nice way to do this?
-    xs1, Gamma_grid, objs1 = x_l2reg_CV(cs_unsc, muhat1, 2*vs, muhat2, 
+    xs1, Gamma_grid, objs1 = x_l2reg_CV(cs_unsc, muhat1, vs/2, muhat2, 
                         Gamma_step=Gamma_step, Gamma_min=Gamma_min, 
                         Gamma_max=Gamma_max)
-    xs2, Gamma_grid, objs2 = x_l2reg_CV(cs_unsc, muhat2, 2*vs, muhat1, 
+    xs2, Gamma_grid, objs2 = x_l2reg_CV(cs_unsc, muhat2, vs/2, muhat1, 
                         Gamma_step=Gamma_step, Gamma_min=Gamma_min, 
                         Gamma_max=Gamma_max)
 
