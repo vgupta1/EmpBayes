@@ -4,15 +4,16 @@
 #pass arguments for things via ARGS[1] is numRun per batch
 
 spath = "./Results/3PartCLT_plot"
-N_grid = collect(1:10)
+N_grid = collect(1:20)
 const n = 2^17
 numRuns = parse(Int, ARGS[1])
+dist_type = ARGS[2]
 
 tic()
-a = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 8675309)
-b = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 5164174290)
-c = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 5167462266)
-d = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 123456)
+a = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 8675309, dist_type)
+b = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 5164174290, dist_type)
+c = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 5167462266, dist_type)
+d = @spawn test_3PartCLT(spath, numRuns, n, N_grid, 123456, dist_type)
 
 ######
 file_a = fetch(a)

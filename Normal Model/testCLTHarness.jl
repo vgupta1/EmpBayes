@@ -23,7 +23,7 @@ function sim!(o::CLTExp, muhat)
 	const scale = 1/ std(o.dist) / sqrt(o.N)  #sqrt(12/o.N)
 	const n = length(o.cs)
 	for k = 1:o.N
-		muhat[:] += (rand(n) - shift) * scale
+		muhat[:] += (rand(dist, n) - shift) * scale
 	end
 	muhat[:] = muhat[:] ./ sqrt(o.vs) + o.thetas
 end
@@ -174,16 +174,16 @@ end
 
 function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
 	srand(seed)
-	if dist_type == :uniform
+	if dist_type == "uniform"
 		dist = Uniform()
-	elseif dist_type == :bernoulli
+	elseif dist_type == "bernoulli"
 		dist = Bernoulli(.5)
-	elseif dist_type == :exponential
+	elseif dist_type == "exponential"
 		dist = Exponential()
-	elseif dist_type == :t
+	elseif dist_type == "t"
 		dist = TDist(3)
 	else
-		throw()
+		throw("Distribution Type Not Recognized: $(dist_type)")
 	end
 
 	o = threePartCLTExp(n, N_grid[1], dist)
@@ -198,7 +198,7 @@ end
 #########
 N_grid = collect(1:10)
 #Small run for pre0compilation
-test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, :uniform)
+test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, "uniform")
 
 
 
