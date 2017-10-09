@@ -50,6 +50,7 @@ end
 function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 	const n = length(o.cs)
 	muhat = zeros(Float64, n)
+	noise = zeros(Float64, n)
 
 	#write a header
 	writecsv(f, ["Run" "N" "Method" "thetaVal" "time" "tau0"])
@@ -59,6 +60,8 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			#reset the object and simulate
 			o.N = N
 			sim!(o, muhat)
+			noise[:] = randn!(noise) ./ sqrt(o.vs)
+
 
 			#SAA
 			tic()
