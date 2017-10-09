@@ -23,7 +23,7 @@ function sim!(o::CLTExp, muhat)
 	const scale = 1/ std(o.dist) / sqrt(o.N)  #sqrt(12/o.N)
 	const n = length(o.cs)
 	for k = 1:o.N
-		muhat[:] += (rand(dist, n) - shift) * scale
+		muhat[:] += (rand(o.dist, n) - shift) * scale
 	end
 	muhat[:] = muhat[:] ./ sqrt(o.vs) + o.thetas
 end
