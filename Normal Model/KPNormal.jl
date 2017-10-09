@@ -722,6 +722,7 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; Gamma_step = .01, Gamma_min = .1
                         Gamma_step=Gamma_step, Gamma_min=Gamma_min, 
                         Gamma_max=Gamma_max)
 
+    #Depends on fact that Gamma_grid is identical.
     objs = .5 .* (objs1 + objs2)
     Gamma_best = Gamma_grid[indmax(objs)]
     Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small $Gamma_min $Gamma_max")
