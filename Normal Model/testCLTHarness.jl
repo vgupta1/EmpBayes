@@ -141,6 +141,46 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "SteinReg" thetaval t Gammahat])
+
+				#Stein Appraoch with Bounds
+				tic()
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min = 10., Gamma_max = 20.)
+				t = toc()
+				Gammahat = Gamma_grid[indmax(objs)]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "SteinRegBnded" thetaval t Gammahat])
+
+				#RO heuristic for Gamma
+				#eps = .1				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs, muhat, o.vs, 2.563103)
+				t = toc()
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "RO_Eps_.1" thetaval t 2.563103])
+
+				#eps = .05				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs, muhat, o.vs, 3.289707)
+				t = toc()
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "RO_Eps_.05" thetaval t 3.289707])
+
+				#eps = .01				
+				tic()
+				xs, lam = KP.x_l2reg(o.cs, muhat, o.vs, 4.652696)
+				t = toc()
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "RO_Eps_.01" thetaval t 4.652696])
+
+				#Leave one out validation (LOO)
+				tic()
+				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs)
+				t = toc()
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "LOO" thetaval t Gamma_grid[indmax(objs)]])
+
+
+
 			end
 
 		end
