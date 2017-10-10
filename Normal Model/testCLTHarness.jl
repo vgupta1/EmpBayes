@@ -215,8 +215,8 @@ function threePartCLTExp(n, N, dist)
 	return CLTExp(cs, thetas, vs, N, dist)
 end
 
-function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
-	srand(seed)
+#helper
+function get_dist(dist_type)
 	if dist_type == "uniform"
 		dist = Uniform()
 	elseif dist_type == "bernoulli"
@@ -228,7 +228,12 @@ function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
 	else
 		throw("Distribution Type Not Recognized: $(dist_type)")
 	end
+	return dist
+end
 
+function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
+	srand(seed)
+	dist = get_dist(dist_type)
 	o = threePartCLTExp(n, N_grid[1], dist)
 	file_name = "$(file_out)_3partCLT_$(n)_$(seed).csv"
 	f = open(file_name, "w")
@@ -237,11 +242,33 @@ function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
 	return file_name
 end
 
+function test_POAPCLT(file_out, param_path, numRuns, n, N_grid, seed, dist_type)
+	srand(seed)
+	dat, header = readcsv(param_path, header=true)
+
+	@assert n <= size(dat, 1) "Param file too short for n"
+	cs = dat[1:n, 3]
+	thetas = dat[1:n, 1]
+	vs = dat[1:n, 2]
+	cs /= quantile(cs, .2)  #rescale cs so budget is sensible. 
+
+	dist = get_dist(dist_type)
+	o = CLTExp(cs, thetas, vs, N_grid[1], dist)
+
+	file_name = "$(file_out)_$(seed).csv"
+	f = open(file_name, "w")
+	test_CLTharness(f, numRuns, o, N_grid, includeReg=true)
+	close(f)
+
+end
+
+
+
 ########################################################
 #########
 N_grid = collect(1:10)
 #Small run for pre0compilation
-test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, "uniform")
-
+#test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, "uniform")
+test_POAPCLT("Results/temp_POAPCLT", "Results/param_portExp_mtn1.csv", 2, 100, [2 3], 8675309, "exponential")
 
 
