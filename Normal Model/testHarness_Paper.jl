@@ -147,21 +147,21 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 				#RO heuristic for Gamma
 				#eps = .1				
 				tic()
-				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.563103)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.563103)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "RO_Eps_.1" thetaval t 2.563103])
 
 				#eps = .05				
 				tic()
-				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 3.289707)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 3.289707)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "RO_Eps_.05" thetaval t 3.289707])
 
 				#eps = .01				
 				tic()
-				xs, lam = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 4.652696)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 4.652696)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 4.652696])
@@ -332,6 +332,33 @@ function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
 	close(f)
 	return file_name
 end
+
+#uses the three-part set-up to create density plots
+function create_density_plot(file_name; n=2^17, seed=8675309)
+	srand(seed)
+	f = open(file_name, "w")
+
+	cs = ones(n)
+	thetas = ones(n)
+	vs = ones(n)
+
+	thetas[1:3:n] = theta_l
+	vs[1:3:n] = v_l
+	cs[1:3:n] = c_l
+
+	thetas[2:3:n] = theta_m
+	vs[2:3:n] = v_m
+	cs[2:3:n] = c_m
+
+	thetas[3:3:n] = theta_h
+	vs[3:3:n] = v_h
+	cs[3:3:n] = c_h
+
+	#
+
+
+end
+
 
 
 

@@ -730,4 +730,19 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; Gamma_step = .01, Gamma_min = .1
     return x_l2reg(cs_unsc, .5 .* (muhat1 + muhat2), vs, Gamma_best)[1], Gamma_grid, objs
 end
 
+#Solves the ellipsoidal robust problem with radius r/n
+# Algorithm seeks the equivalent "Gamma" for the regularized problem that matches the KKT conditions
+# Rootfinding requires Gamma_min, gamma_max must be a bracket
+function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100)
+    const sqrt_vmin = sqrt(minimum(vs))
+    function f(Gamma)
+        xs, lam = KP.x_l2reg(cs, muhat, vs, Gamma)
+        return Gamma * sqrt_vmin * v_norm(xs, vs) - r
+    end
+    @assert f(gamma_min) * f(gamma_max) < 0 "Gamma_min, Gamma_max not a bracket"
+    Gammastar = fzero(f, gamma_min, gamma_max)
+    return KP.x_l2reg(cs, muhat, vs, Gammastar)
+end
+
+
 end #ends module
