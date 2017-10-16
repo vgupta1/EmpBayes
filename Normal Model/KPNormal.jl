@@ -737,7 +737,7 @@ function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100)
     const sqrt_vmin = sqrt(minimum(vs))
     function f(Gamma)
         xs, lam = KP.x_l2reg(cs, muhat, vs, Gamma)
-        return Gamma * sqrt_vmin * v_norm(xs, vs) - r
+        return Gamma * sqrt_vmin * sqrt(sum(xs.^2 ./ vs)) - r
     end
     @assert f(gamma_min) * f(gamma_max) < 0 "Gamma_min, Gamma_max not a bracket"
     Gammastar = fzero(f, gamma_min, gamma_max)
