@@ -733,12 +733,35 @@ end
 #Solves the ellipsoidal robust problem with radius r/n
 # Algorithm seeks the equivalent "Gamma" for the regularized problem that matches the KKT conditions
 # Rootfinding requires Gamma_min, gamma_max must be a bracket
-function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100)
+function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
     const sqrt_vmin = sqrt(minimum(vs))
     function f(Gamma)
         xs, lam = KP.x_l2reg(cs, muhat, vs, Gamma)
         return Gamma * sqrt_vmin * sqrt(sum(xs.^2 ./ vs)) - r
     end
+
+    #Search for a bracket
+    #assume this function is increasing.
+    MAX_ITER = 20
+    iter = 1
+    if f(gamma_min) > 0 
+        println("Gamma min was too large")
+        while f(gamma_min) > 0
+            gamma_max = gamma_min
+            gamma_min /= 2
+            iter += 1
+            @assert iter < MAX_ITER "Maximum iterations reached in bracketing robust"
+        end
+    elseif f(gamma_max) < 0
+        println("Gamma_max was too small")
+        while f(gamma_max) < 0
+            gamma_min = gamma_max
+            gamma_max *= 2
+            iter += 1
+            @assert iter < MAX_ITER "Maximum iterations reached in bracketing robust"
+        end
+    end
+
     @assert f(gamma_min) * f(gamma_max) < 0 "Gamma_min, Gamma_max not a bracket"
     Gammastar = fzero(f, gamma_min, gamma_max)
     return KP.x_l2reg(cs, muhat, vs, Gammastar)
