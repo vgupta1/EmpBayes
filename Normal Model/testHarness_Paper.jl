@@ -147,24 +147,24 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 				#RO heuristic for Gamma
 				#eps = .1				
 				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.563103)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.2815515655446006)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.1" thetaval t 2.563103])
+				writecsv(f, [iRun n "RO_Eps_.1" thetaval t 1.2815515655446006])
 
 				#eps = .05				
 				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 3.289707)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.05" thetaval t 3.289707])
+				writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
 
 				#eps = .01				
 				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 4.652696)
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.326347874040845)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 4.652696])
+				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
 
 				#Leave one out validation (LOO)
 				tic()
