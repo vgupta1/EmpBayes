@@ -225,6 +225,8 @@ function get_dist(dist_type)
 		dist = Exponential()
 	elseif dist_type == "t"
 		dist = TDist(3)
+	elseif dist_type == "pareto"
+		dist = Pareto(3)
 	else
 		throw("Distribution Type Not Recognized: $(dist_type)")
 	end
