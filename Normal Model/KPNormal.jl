@@ -732,7 +732,7 @@ end
 
 #Solves the ellipsoidal robust problem with radius r/n
 # Algorithm seeks the equivalent "Gamma" for the regularized problem that matches the KKT conditions
-# Rootfinding requires Gamma_min, gamma_max must be a bracket
+# Corrects gamma_min, gamma_max if not a bracket
 function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
     const sqrt_vmin = sqrt(minimum(vs))
     function f(Gamma)
