@@ -136,14 +136,6 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
 
-				#Stein Appraoch with Bounds
-				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=1., Gamma_max=Gamma_max)
-				t = toc()
-				Gammahat = Gamma_grid[indmax(objs)]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "SteinRegBnded_1" thetaval t Gammahat])
-
 				#RO heuristic for Gamma
 				#eps = .1				
 				tic()
@@ -171,7 +163,16 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs[1:n], muhat[1:n] + noise[1:n], muhat[1:n] - noise[1:n], o.vs[1:n])
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
+				GammaLOO = Gamma_grid[indmax(objs)]
 				writecsv(f, [iRun n "LOO" thetaval t Gamma_grid[indmax(objs)]])
+
+				#Stein Appraoch with Bounds
+				tic()
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=.1*GammaLOO, Gamma_max=10*GammaLOO)
+				t = toc()
+				Gammahat = Gamma_grid[indmax(objs)]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "SteinRegHeuristic" thetaval t Gammahat])
 			end
 
 			# #The primal stein approach
