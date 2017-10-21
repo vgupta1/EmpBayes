@@ -29,7 +29,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_harness(f, numRuns, o, n_grid; includeReg=true)
+function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamma_max=20.)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 	noise = zeros(Float64, n_max)
@@ -122,7 +122,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 			if includeReg
 				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
@@ -130,7 +130,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 
 				#Our Stein Approach to Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
@@ -138,11 +138,11 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true)
 
 				#Stein Appraoch with Bounds
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min = 10., Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=1., Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "SteinRegBnded" thetaval t Gammahat])
+				writecsv(f, [iRun n "SteinRegBnded_1" thetaval t Gammahat])
 
 				#RO heuristic for Gamma
 				#eps = .1				
