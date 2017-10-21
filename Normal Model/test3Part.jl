@@ -25,13 +25,17 @@ theta_h, v_h, c_h = 0.3, 4.0, 20.001
 
 tic()
 a = @spawn test_threePart(spath, numRuns, n_grid, 8675309000, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), 
+                        true, Gamma_min, Gamma_max)
 b = @spawn test_threePart(spath, numRuns, n_grid, 5164174290, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), 
+                        true, Gamma_min, Gamma_max)
 c = @spawn test_threePart(spath, numRuns, n_grid, 5167462266, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), 
+                        true, Gamma_min, Gamma_max)
 d = @spawn test_threePart(spath, numRuns, n_grid, 123456, 
-						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), true)
+						float(theta_l), float(v_l), float(c_l), float(theta_m), float(v_m), float(c_m), float(theta_h), float(v_h), float(c_h), 
+                        true, Gamma_min, Gamma_max)
 ######
 file_a = fetch(a)
 file_b = fetch(b)

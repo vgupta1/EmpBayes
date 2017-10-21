@@ -10,6 +10,10 @@ const n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
 
+#VG need to update here to pass through all the way to bottom.
+# Gamma_min = parse(Float64, ARGS[3])
+# Gamma_max = parse(Float64, ARGS[4])
+
 tic()
 a = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 8675309, dist_type)
 b = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 5164174290, dist_type)
