@@ -7,6 +7,8 @@ spath = "./Results/3Part_plot"
 n_grid = [2^i for i = 5:17]
 
 numRuns = parse(Int, ARGS[1])
+Gamma_min = parse(Float64, ARGS[2])
+Gamma_max = parse(Float64, ARGS[3])
 
 #extract the relevant things from ARGS
 # theta_l, v_l, c_l = ARGS[2:4]
