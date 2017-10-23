@@ -3,12 +3,14 @@
 #julia -p 4 -L testCLTHarness.jl tests_POAPCLT.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
-const spath = "./Results/POAPCLT_plot"
+const spath = "./Results/POAPCLT_plot_presentation"
 const param_path = "./Results/param_portExp_mtn1.csv"
 N_grid = collect(1:15)
 const n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
+
+const n = 2^15
 
 #VG need to update here to pass through all the way to bottom.
 # Gamma_min = parse(Float64, ARGS[3])

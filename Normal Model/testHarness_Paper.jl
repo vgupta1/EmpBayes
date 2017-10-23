@@ -10,7 +10,7 @@ type DefaultExp
 end
 
 function sim!(o, muhat)
-	muhat[:] = randn!(muhat) ./ sqrt(o.vs) + o.thetas
+	muhat[:] = randn!(muhat) ./ sqrt.(o.vs) + o.thetas
 end
 
 ######################
@@ -40,7 +40,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
 		sim!(o, muhat)
-		noise[:] = randn!(noise) ./ sqrt(o.vs)
+		noise[:] = randn!(noise) ./ sqrt.(o.vs)
 
 		for n in n_grid
 			#Compute performance of each method
@@ -122,19 +122,50 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 			if includeReg
 				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], 
+															Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
 
+				#From the same values, extract oracles for Other pairs
+				#For Gamma_min =1
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "OracleReg_1" thetaval t Gammahat])
+
+				#For Gamma_min = 5
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
+
 				#Our Stein Approach to Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], 
+											Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
+
+				#Again, from same values, extract values for gamma_min
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "SteinReg_1" thetaval t Gammahat])
+
+				#Again, from same values, extract values for gamma_min
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
 				#RO heuristic for Gamma
 				#eps = .1				
@@ -160,31 +191,26 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 
 				#Leave one out validation (LOO)
 				tic()
-				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs[1:n], muhat[1:n] + noise[1:n], muhat[1:n] - noise[1:n], o.vs[1:n])
+				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs[1:n], muhat[1:n] + noise[1:n], muhat[1:n] - noise[1:n], o.vs[1:n], 
+													Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				GammaLOO = Gamma_grid[indmax(objs)]
-				writecsv(f, [iRun n "LOO" thetaval t Gamma_grid[indmax(objs)]])
+				writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
 
-				#Stein Appraoch with Bounds
-				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma_min=.1*GammaLOO, Gamma_max=10*GammaLOO)
-				t = toc()
-				Gammahat = Gamma_grid[indmax(objs)]
+				#Use same values to extract for other gamma_min
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "SteinRegHeuristic" thetaval t Gammahat])
+				writecsv(f, [iRun n "LOO_1" thetaval t GammaLOO])
+
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
 			end
-
-			# #The primal stein approach
-			# #use the optimized rate, i.e. h_n = n^-1/6
-			# h = n^-.16666
-			# tic()
-			# xs, vals, objs = KP.x_stein_primal(o.cs[1:n], muhat[1:n], o.vs[1:n], h)
-			# t = toc()
-			# yval = dot(ys[1:n], xs)/n
-			# thetaval = dot(o.thetas[1:n], xs)/n
-			# writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
-
 
 		end
 		flush(f)
@@ -269,7 +295,7 @@ end
 
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
-						includeReg = true)
+						includeReg = true, Gamma_min = .1, Gamma_max = 20)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
@@ -286,7 +312,7 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid; includeReg=includeReg)
+	test_harness(f, numRuns, o, n_grid; includeReg=includeReg, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 	close(f)
 	return file_name	
 end
@@ -369,5 +395,5 @@ end
 n_grid = [2^i for i = 5:17]
 #small run for pre-compilation
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
-#test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
-test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")
+test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
+#test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")

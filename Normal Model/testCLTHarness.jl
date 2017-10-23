@@ -25,7 +25,7 @@ function sim!(o::CLTExp, muhat)
 	for k = 1:o.N
 		muhat[:] += (rand(o.dist, n) - shift) * scale
 	end
-	muhat[:] = muhat[:] ./ sqrt(o.vs) + o.thetas
+	muhat[:] = muhat[:] ./ sqrt.(o.vs) + o.thetas
 end
 
 
@@ -60,8 +60,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			#reset the object and simulate
 			o.N = N
 			sim!(o, muhat)
-			noise[:] = randn!(noise) ./ sqrt(o.vs)
-
+			noise[:] = randn!(noise) ./ sqrt.(o.vs)
 
 			#SAA
 			tic()
@@ -131,27 +130,57 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			if includeReg
 				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs, muhat, o.vs, o.thetas, Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs, muhat, o.vs, o.thetas, 
+															Gamma_min=.1, Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "OracleReg" thetaval t Gammahat])
 
+				## Reuse same values to look at different Gamma_min
+				#For Gamma_min =1
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "OracleReg_1" thetaval t Gammahat])
+
+				#For Gamma_min =5
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "OracleReg_5" thetaval t Gammahat])
+
 				#Our Stein Approach to Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min=.1, Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "SteinReg" thetaval t Gammahat])
 
-				#Stein Appraoch with Bounds
-				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min = 10., Gamma_max = 20.)
-				t = toc()
-				Gammahat = Gamma_grid[indmax(objs)]
+				#Reuse values for shortened gamma
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
 				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun N "SteinRegBnded" thetaval t Gammahat])
+				writecsv(f, [iRun N "SteinReg_1" thetaval t Gammahat])
+
+				#Reuse values for shortened gamma
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "SteinReg_5" thetaval t Gammahat])
+
+				# #Stein Appraoch with Bounds
+				# tic()
+				# xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min = 10., Gamma_max = 20.)
+				# t = toc()
+				# Gammahat = Gamma_grid[indmax(objs)]
+				# thetaval = dot(o.thetas, xs)/n
+				# writecsv(f, [iRun N "SteinRegHeuristic" thetaval t Gammahat])
 
 				#RO heuristic for Gamma
 				#eps = .1				
@@ -177,13 +206,25 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 
 				#Leave one out validation (LOO)
 				tic()
-				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs)
+				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs, 
+													Gamma_min=.1, Gamma_max=20)
 				t = toc()
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "LOO" thetaval t Gamma_grid[indmax(objs)]])
 
+				#Use same values to extract for other gamma_min
+				ind_min = findfirst(Gamma_grid .>= 1.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "LOO_1" thetaval t GammaLOO])
 
-
+				#Use same values to extract for other gamma_min
+				ind_min = findfirst(Gamma_grid .>= 5.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "LOO_5" thetaval t GammaLOO])
 			end
 
 		end

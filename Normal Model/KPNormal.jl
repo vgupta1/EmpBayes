@@ -712,8 +712,8 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
     return x_l2reg(cs_unsc, muhat, vs, Gamma_best)[1], Gamma_grid, objs
 end
 
-function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; Gamma_step = .01, Gamma_min = .1, 
-                                                Gamma_max = 10)
+function x_LOO_reg(cs_unsc, muhat1, muhat2, vs; 
+                    Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     #VG What is the nice way to do this?
     xs1, Gamma_grid, objs1 = x_l2reg_CV(cs_unsc, muhat1, vs/2, muhat2, 
                         Gamma_step=Gamma_step, Gamma_min=Gamma_min, 

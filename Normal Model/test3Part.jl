@@ -3,8 +3,9 @@
 #julia -p 3 -L testHarness_Paper.jl tests_3part.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
-spath = "./Results/3Part_plot"
-n_grid = [2^i for i = 5:17]
+spath = "./Results/3Part_plot_presentation_"
+#n_grid = [2^i for i = 5:17]
+n_grid = [2^i for i = 5:15]
 
 numRuns = parse(Int, ARGS[1])
 Gamma_min = parse(Float64, ARGS[2])

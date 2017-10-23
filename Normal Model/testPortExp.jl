@@ -2,19 +2,20 @@
 #run like this
 #julia -p 4 -L testHarness_Paper.jl tests_port.jl
 #ARGS[1] is numRun per batch
-#ARGS[2] is path to the parameter file
 
-spath = "./Results/portExp"
+spath = "./Results/portExp_presentation"
+const param_path = "./Results/param_portExp_mtn1.csv"
+
 n_grid = [2^i for i = 5:17]
+n_grid = [2^i for i = 5:15]
 
 numRuns = parse(Int, ARGS[1])
-param_path = ARGS[2]
 
 tic()
-a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309000, param_path)
-b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path)
-c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path)
-d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path)
+a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309000, param_path, Gamma_min=.1, Gamma_max=20.)
+b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path, Gamma_min=.1, Gamma_max=20.)
+c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path, Gamma_min=.1, Gamma_max=20.)
+d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path, Gamma_min=.1, Gamma_max=20.)
 
 ######
 file_a = fetch(a)
