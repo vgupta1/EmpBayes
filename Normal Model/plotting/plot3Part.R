@@ -12,10 +12,6 @@ font_add("Times New Roman", "Times New Roman.ttf")
 showtext_auto()
 font = "Times New Roman"
 
-#Decided to only use the alpha = .05 values for the paper so this is unnecessary
-# dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_10.001_1.0_1.0_10.001_0.3_4.0_10.001_8675309000.csv_full_200.csv")
-# spath = "../../../../OR Submission_1/Figures/3Part10.pdf"
-
 dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
 spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
 dat$Method = as.factor(dat$Method)
@@ -95,7 +91,7 @@ g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "BoxStein", "SURE_MSE", "S
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
   geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
-  theme_minimal(base_size=11) +
+  theme_minimal(base_size=10) +
   theme(legend.position = c(.65, .3), 
         legend.title=element_blank(), 
         text=element_text(family=font), 
@@ -109,7 +105,7 @@ g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "BoxStein", "SURE_MSE", "S
 g
 spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
 ggsave(spath, 
-       g, width=3.25, height=3.25, units="in")
+       g, width=3, height=3, units="in")
 
 
 #############
@@ -120,7 +116,7 @@ g1 <- dat %>% filter(Method %in% c("BoxStein", "EB_MM", "EB_MLE", "SURE_MSE", "O
   geom_density(aes(group=Label, fill=Label), 
                alpha=.5, linetype="blank") + 
   xlab("Fitted tau") + ylab("") + 
-  theme_minimal(base_size=11) + 
+  theme_minimal(base_size=10) + 
   theme(text=element_text(family=font),
       legend.title=element_blank(), 
         legend.position=c(.8, .8))
@@ -132,19 +128,19 @@ dat.labels <- tribble(
   "EB OPT", 1.1, 4.8, 
   "EB SURE", 1.8, 11, 
   "EB MM", 3, 3, 
-  "EB MLE", 5, 6
+  "EB MLE", 4.8, 6
   )
 
 g1 <- g1 + theme(legend.position="none") + 
   geom_text(data=dat.labels, 
               aes(x, y, label=Method), 
               family=font, 
-              size=3, hjust="c", vjust="m")
+              size=2.5, hjust="c", vjust="m")
 g1 <- g1 + xlab(expression(tau))
 
 
 ggsave("../../../../OR Submission_1/Figures/3PartTaus.pdf", 
-       g1, width=3.25, height=3.25, units="in")
+       g1, width=2.275, height=2.275, units="in")
 
 
 ######
@@ -159,12 +155,12 @@ dat <- dat %>% mutate(Type=as.factor(mu),
 
 ##First create plot for baseline
 g <- dat %>%
-  ggplot(aes(muhat, fill=Type)) +
-  geom_density(linetype="blank", alpha=.5) + 
+  ggplot(aes(muhat, fill=Type, linetype=Type, color=Type)) +
+  geom_density(alpha=.5) + 
   geom_vline(xintercept = quantile(dat$muhat, .95), 
              linetype="dotted") +
   xlab("") + ylab("") + 
-  theme_minimal(base_size=11) +
+  theme_minimal(base_size=10) +
   theme(legend.title=element_blank(), 
         text = element_text(family=font), 
         legend.position=c(.2,.8))
@@ -179,20 +175,20 @@ props_table <-
 
 g<- g + annotation_custom(tableGrob(props_table, rows=NULL, 
                                 theme=ttheme_minimal(base_size=8)), 
-                      xmin=7, xmax=12, ymin=.5, ymax=.75)
+                      xmin=6.5, xmax=11.5, ymin=.5, ymax=.75)
 
 ggsave("../../../../OR Submission_1/Figures/3PartDensitySAA.pdf", 
-       g, width=3.25, height=3.25, units="in")
+       g, width=2.75, height=2.75, units="in")
 
 ####
 #Next plot tauOR
 g <- dat %>%
-  ggplot(aes(rOR, fill=Type)) +
-  geom_density(linetype="blank", alpha=.5) + 
+  ggplot(aes(rOR, fill=Type, linetype=Type, color=Type)) +
+  geom_density(alpha=.5) + 
   geom_vline(xintercept = quantile(dat$rOR, .95), 
              linetype="dotted") +
   xlab("") + ylab("") + 
-  theme_minimal(base_size=11) +
+  theme_minimal(base_size=10) +
   theme(legend.title=element_blank(), 
         text = element_text(family=font), 
         legend.position=c(.2,.8))
@@ -207,21 +203,21 @@ props_table <-
 
 g<- g + annotation_custom(tableGrob(props_table, rows=NULL, 
                                     theme=ttheme_minimal(base_size=8)), 
-                          xmin=1.7, xmax=3, ymin=.62, ymax=.83)
+                          xmin=2, xmax=3, ymin=.62, ymax=.83)
 
 ggsave("../../../../OR Submission_1/Figures/3PartDensityOr.pdf", 
-       g, width=3.25, height=3.25, units="in")
+       g, width=2.75, height=2.75, units="in")
 
 
 
 ###Finally do TauMLE
 g <- dat %>%
-  ggplot(aes(rMLE, fill=Type)) +
-  geom_density(linetype="blank", alpha=.5) + 
+  ggplot(aes(rMLE, fill=Type, linetype=Type, color=Type)) +
+  geom_density(alpha=.5) + 
   geom_vline(xintercept = quantile(dat$rMLE, .95), 
              linetype="dotted") +
   xlab("") + ylab("") + 
-  theme_minimal(base_size=11) +
+  theme_minimal(base_size=10) +
   theme(legend.title=element_blank(), 
         text = element_text(family=font), 
         legend.position=c(.2,.8))
@@ -239,35 +235,19 @@ g<- g + annotation_custom(tableGrob(props_table, rows=NULL,
                           xmin=.7, xmax=1, ymin=4, ymax=6)
 
 ggsave("../../../../OR Submission_1/Figures/3PartDensityMLE.pdf", 
-       g, width=3.25, height=3.25, units="in")
+       g, width=2.75, height=2.75, units="in")
 
 
-
-#####  Single Plot with dependence in Gamma
-dat = read_csv("../Results/GammaDependence.csv")
-g<- dat %>% 
-  ggplot(aes(Gamma, thetaVal)) + 
-  geom_point() + geom_line() + 
-  theme_minimal(base_size=11) +
-  theme(text=element_text(family=font, size=11)) + 
-  xlab(expression(Gamma)) + ylab("Objective")
-
-ggsave("../../../../OR Submission_1/Figures/3PartGammaDep.pdf", 
-       g, width=3.25, height=3.25, units="in")
+## Back track out the tau values for hte paper
+dat %>% mutate(tauOR = vs/rOR  * (muhat-rOR), 
+               tauMLE =vs/rMLE * (muhat-rMLE), 
+               tauMM = vs/rMM  * (muhat-rMM)) %>% 
+  select(muhat, tauOR, tauMLE, tauMM) %>% head()
 
 
-dat %>% filter(Method == "OracleReg") %>%
-  ggplot(aes(tau0)) + 
-  geom_density()
+####
 
-dat %>% filter(Method == "OracleReg") %>%
-  group_by(n) %>%
-  summarise(max = max(tau0), 
-            min = min(tau0), 
-            avg = mean(tau0), 
-            bnd_up = mean(tau0 >= 19.999), 
-            bnd_low = mean(tau0 <= .1), 
-            )
+
 
 
 

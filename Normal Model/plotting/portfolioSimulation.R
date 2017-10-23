@@ -5,6 +5,7 @@
 library(tidyverse)
 library(ggplot2)
 library(copula)
+library(purrr)
 
 ##Parameters taken from personal correspondence with M. Sahin
 gumbCop <- gumbelCopula(2.)
@@ -15,7 +16,7 @@ dist <- mvdc(gumbCop, margins=c("cauchy", "lnorm"),
 
 #Generate excess data, and save down first 2^17 elements
 set.seed(8675309)
-n = 1000000
+n = 5000000
 dat <- rMvdc(n, dist)
 dat <- as_tibble(dat)
 names(dat)<- c("Beta0", "Beta1")
@@ -38,20 +39,15 @@ dat <- mutate(dat, thetas = phi) %>%
 
 # Rescale for convenience so numbers closer to unity
 # Constants chosen "by hand" but does not affect final computation
-dat <- dat[1:2^17, ]
+#dat <- dat[1:2^21, ]
 dat <- dat %>% mutate(thetas = thetas/200, c = c/200)
 
 dat %>% ggplot(aes(thetas/c)) + geom_density()
 summary(dat$thetas/dat$c)
 
 ### 
-# Generate vs according to a variety of models
-# all have the features
-# low value/weight ratio -> very low precision
-# medium value/weight ratio -> high precision
-# high value/weight ratio -> medium precision
+# Generate vs 
 dat <- dat %>% mutate(ratio = thetas/c)
-dat %>% ggplot(aes(ratio)) + geom_density()
 dat <- dat %>% mutate(ratio_rank = rank(ratio)/nrow(dat))
 
 #Goals:
@@ -62,30 +58,52 @@ dat <- dat %>% mutate(ratio_rank = rank(ratio)/nrow(dat))
 #simplest.  Try a triangular shape...  
 #Fix the endpoints to make the top/bottom 10% do what you want.  
 #Save down a couple of placement of peaks
-dat <- dat %>% mutate(type = ifelse(ratio_rank < .1, "Low", 
-                                    ifelse(ratio_rank < .9, "Med", "High")))
+dat <- dat %>% mutate(type = ifelse(ratio_rank < .33, "Low", 
+                                    ifelse(ratio_rank < .66, "Med", "High")))
 
 dat %>% group_by(type) %>% 
   summarise(avgTheta = mean(thetas), 
             avgc = mean(c), 
             avgratio = mean(ratio)
             )
-#Need low sigma to be about .2 = .6 * .46 - .073
-#Double it (.4) to give room for high items.  So typical low item ratio  = 1.0
 
-#high sigma can't make them beat low sigma often. (i.e. 2 stdev)
-#(1.3 + 2 * sigma)/ 2.95 < 1... yields Sigma .825
-#Try a .4 (for symmetry) for now
+# #do a linear interpolation?
+# v_fun <- approxfun(c(0, .5, 1), 
+#             c(.1, 1, .1))
+# t = seq(0, 1, by=.05)
+# qplot(x=t, y=map_dbl(t, v_fun)) + geom_point()
 
-#do a linear interpolation?
-v_fun <- approxfun(c(0, .5, 1), 
-            c(1/.4^2, 1./.1^2, 1/.4^2))
+#Try a piecewise constant approximation
 
-dat <- dat %>% mutate(vs = v_fun(ratio_rank))
+dat2 <- dat %>% mutate(vs = ifelse(type=="Low", .1,
+                            ifelse(type=="Med", 10, 
+                                                8)),  #8
+                       muhat = thetas + rnorm(nrow(dat2))/ sqrt(vs), 
+                       ratio_noisy = muhat/c, 
+                       rank_noisy = rank(ratio_noisy)/nrow(dat2), 
+                       type_noisy = ifelse(rank_noisy < .33, "Low", 
+                                           ifelse(rank_noisy < .66, "Med", "High")))
 
-## compute a realization of muhat
-dat <- dat %>% mutate(muhat = thetas + rnorm(nrow(dat)/ sqrt(vs)))
-dat <- dat %>% mutate(ratio_noisy = muhat/c) 
+
+#Now compute tthe confusion
+#table(dat2$type, dat2$type_noisy)
+
+dat2 %>% filter(type_noisy == "High") %>% group_by(type) %>%
+  summarise(num = n()) %>%
+  mutate(prop = num/sum(num)) %>%
+  select(-num)
+
+
+##Current Best
+#c(.01,10, 1))
+#  35   38  27
+
+### write down a samplet to try out
+dat2 %>% select(thetas, vs, c) %>%
+  write_csv("../Results/param_portExp_mtn1.csv")
+
+ggplot(dat2, aes(ratio_rank, vs)) + geom_point()
+
 
 #sanity check, compute the values for SAA, random and and full-info
 mean(dat$ratio)
@@ -108,5 +126,16 @@ dat %>%
   
 # dat %>% select(thetas, vs, c) %>%
 #   write_csv("../Results/param_portExp_Linear_.5.csv")
+
+dat %>% select(thetas, vs, c) %>%
+  write_csv("../Results/param_big_portExp_Linear_.5.csv")
+
+### Read it in, scale it down and save it back
+dat <- read_csv("../Results/param_portExp_Linear_.5.csv")
+
+dat %>% mutate(thetas = thetas / 10, c = c/10) %>%
+  write_csv("../Results/param_portExp_scaled_.5.csv")
+
+
 
 

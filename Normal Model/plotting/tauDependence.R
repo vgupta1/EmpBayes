@@ -19,10 +19,10 @@ dat = read_csv("../Results/tauDependence.csv")
 g<- dat %>% 
   ggplot(aes(tau, thetaVal)) + 
   geom_point() + geom_line() + 
-  theme_minimal(base_size=11) +
-  theme(text=element_text(family="Times New Roman", size=11)) + 
-  xlab(expression(tau)) + ylab("Objective") +
+  theme_minimal(base_size=10) +
+  theme(text=element_text(family="Times New Roman", size=10)) + 
+  xlab(expression(tau)) + ylab("(%) of Full-Info") +
   ylim(0, .05)
 
 ggsave("../../../../OR Submission_1/Figures/3PartTauDep.pdf", 
-       g, width=3.25, height=3.25, units="in")
+       g, width=3, height=3, units="in")

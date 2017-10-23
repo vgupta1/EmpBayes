@@ -7,9 +7,11 @@ font_add("Times New Roman", "Times New Roman.ttf")
 showtext_auto()
 font = "Times New Roman"
 
+#Uses updated experimetnal values
 dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
-dat$Method = as.factor(dat$Method)
 
+
+dat$Method = as.factor(dat$Method)
 ##Reorder and relabel factors
 dat <- mutate(dat, Method = fct_relevel(Method, 
                                         "FullInfo", "OR", "BoxStein", "DiracStein", 
@@ -60,12 +62,9 @@ dat.sum %>% filter(Method %in% c("OR", "BoxStein")) %>%
   arrange(n, Method) %>% select(n, Method, avgTau0)
   
 
-
-
-
 ## plot some shit
 pd = position_dodge(.3)
-g <- dat.sum %>% filter(Method %in% c("SAA","BoxStein", "SURE_MSE", "EB_MLE", "EB_MM")
+g <- dat.sum %>% filter(Method %in% c("SAA","BoxStein", "SURE_MSE", "EB_MLE", "OR")
                   ) %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
@@ -88,8 +87,35 @@ ggsave("../../../../OR Submission_1/Figures/portPerfBayes.pdf",
        g, width=3.25, height=3.25, units="in")
 
 
-g1 <- dat.sum %>% filter(Method %in% c("SAA", "SteinReg", "LOO", 
-                                      "RO_Eps_.01", "RO_Eps_.1")) %>%
+###Create a Bigger version for appendix with all the methods
+g <- dat.sum %>% filter(Method %in% c("SAA","BoxStein", "SURE_MSE", "EB_MLE", "OR", "EB_MM")
+) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
+  theme_minimal(base_size=11) +
+  theme(legend.title=element_blank(), 
+        text=element_text(family=font), 
+        legend.direction = "horizontal", 
+        legend.position=c(.5, .1), 
+        legend.justification = "center")+
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  scale_x_log10(labels=scales::comma) + 
+  ylab("(%) of Full-Info") +
+  scale_y_continuous(labels=scales::percent, limits = c(.70, .97),
+                     breaks=seq(.75, .95, .1))
+
+g
+ggsave("../../../../OR Submission_1/Figures/portPerfBayesBig.pdf", 
+       g, width=6.5, height=3.25, units="in")
+
+
+#Regularization version
+
+pd = position_dodge(.3)
+g1 <- dat.sum %>% filter(Method %in% c("SAA", "SteinReg", "SteinRegBnded", "LOO", 
+                                      "OracleReg", "RO_Eps_.01")) %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -110,6 +136,29 @@ g1
 ggsave("../../../../OR Submission_1/Figures/portPerfReg.pdf", 
        g1, width=3.25, height=3.25, units="in")
 
+### Make a bigger version for appendix
+pd = position_dodge(.3)
+g1 <- dat.sum %>% filter(Method %in% c("SAA", "SteinReg", "SteinRegBnded", "LOO", 
+                                       "OracleReg", "RO_Eps_.01", "RO_Eps_.05", "RO_Eps_.1")) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
+  theme_minimal(base_size=11) +
+  theme(legend.title=element_blank(), 
+        text=element_text(family=font), 
+        legend.direction = "horizontal", 
+        legend.position=c(.5, .1), 
+        legend.justification =  "center")+
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  scale_x_log10(labels=scales::comma) + 
+  ylab("(%) of Full-Info") +
+  scale_y_continuous(labels=scales::percent, limits =c(.7, .97), 
+                     breaks=seq(.75, .95, .1))
+g1
+
+ggsave("../../../../OR Submission_1/Figures/portPerfRegBig.pdf", 
+       g1, width=6.5, height=3.25, units="in")
 
 ######
 # Similar plots for variance?
