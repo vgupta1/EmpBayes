@@ -10,7 +10,8 @@ const n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
 
-const n = 2^15
+const n = 2^12
+N_grid = collect(1:10)
 
 #VG need to update here to pass through all the way to bottom.
 # Gamma_min = parse(Float64, ARGS[3])
