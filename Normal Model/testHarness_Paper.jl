@@ -10,7 +10,7 @@ type DefaultExp
 end
 
 function sim!(o, muhat)
-	muhat[:] = randn!(muhat) ./ sqrt.(o.vs) + o.thetas
+	muhat[:] = randn!(muhat) ./ sqrt(o.vs) + o.thetas
 end
 
 ######################
@@ -40,7 +40,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
 		sim!(o, muhat)
-		noise[:] = randn!(noise) ./ sqrt.(o.vs)
+		noise[:] = randn!(noise) ./ sqrt(o.vs)
 
 		for n in n_grid
 			#Compute performance of each method
@@ -395,5 +395,5 @@ end
 n_grid = [2^i for i = 5:17]
 #small run for pre-compilation
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
-test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
-#test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")
+#test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
+test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_Linear_.5.csv")
