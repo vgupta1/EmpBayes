@@ -104,12 +104,12 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			thetaval = dot(o.thetas, xs)/n
 			writecsv(f, [iRun N "SURE_MSE" thetaval t tau_CV])
 
-			#Dirac Stein
-			tic()
-			xs, vals, objs = x_stein_exact(o.cs, muhat, o.vs, o.thetas)
-			t = toc()
-			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "DiracStein" thetaval t vals[indmax(objs)]])
+			# #Dirac Stein
+			# tic()
+			# xs, vals, objs = x_stein_exact(o.cs, muhat, o.vs, o.thetas)
+			# t = toc()
+			# thetaval = dot(o.thetas, xs)/n
+			# writecsv(f, [iRun N "DiracStein" thetaval t vals[indmax(objs)]])
 
 			#Box with the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
@@ -131,20 +131,13 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				#Oracle Regularization
 				tic()
 				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs, muhat, o.vs, o.thetas, 
-															Gamma_min=.1, Gamma_max = 20.)
+															Gamma_min=1., Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "OracleReg" thetaval t Gammahat])
 
 				## Reuse same values to look at different Gamma_min
-				#For Gamma_min =1
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
-				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun N "OracleReg_1" thetaval t Gammahat])
-
 				#For Gamma_min =5
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
@@ -152,20 +145,20 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "OracleReg_5" thetaval t Gammahat])
 
+				#For Gamma_min =10
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "OracleReg_10" thetaval t Gammahat])
+
 				#Our Stein Approach to Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min=.1, Gamma_max = 20.)
+				xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min=1, Gamma_max = 20.)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "SteinReg" thetaval t Gammahat])
-
-				#Reuse values for shortened gamma
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
-				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun N "SteinReg_1" thetaval t Gammahat])
 
 				#Reuse values for shortened gamma
 				ind_min = findfirst(Gamma_grid .>= 5.0)
@@ -174,22 +167,13 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "SteinReg_5" thetaval t Gammahat])
 
-				# #Stein Appraoch with Bounds
-				# tic()
-				# xs, Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, Gamma_min = 10., Gamma_max = 20.)
-				# t = toc()
-				# Gammahat = Gamma_grid[indmax(objs)]
-				# thetaval = dot(o.thetas, xs)/n
-				# writecsv(f, [iRun N "SteinRegHeuristic" thetaval t Gammahat])
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "SteinReg_10" thetaval t Gammahat])
 
 				#RO heuristic for Gamma
-				#eps = .1				
-				tic()
-				xs, lam = KP.x_rob(o.cs, muhat, o.vs, 1.2815515655446006)
-				t = toc()
-				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun N "RO_Eps_.1" thetaval t 1.2815515655446006])
-
 				#eps = .05				
 				tic()
 				xs, lam = KP.x_rob(o.cs, muhat, o.vs, 1.6448536269514717)
@@ -207,17 +191,10 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				#Leave one out validation (LOO)
 				tic()
 				xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs, 
-													Gamma_min=.1, Gamma_max=20)
+													Gamma_min=1., Gamma_max=20)
 				t = toc()
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "LOO" thetaval t Gamma_grid[indmax(objs)]])
-
-				#Use same values to extract for other gamma_min
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
-				thetaval = dot(o.thetas, xs)/n
-				writecsv(f, [iRun N "LOO_1" thetaval t GammaLOO])
 
 				#Use same values to extract for other gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
@@ -225,6 +202,12 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 				xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
 				thetaval = dot(o.thetas, xs)/n
 				writecsv(f, [iRun N "LOO_5" thetaval t GammaLOO])
+
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
+				thetaval = dot(o.thetas, xs)/n
+				writecsv(f, [iRun N "LOO_10" thetaval t GammaLOO])
 			end
 
 		end

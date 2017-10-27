@@ -29,7 +29,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamma_max=20.)
+function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamma_max=20.)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 	noise = zeros(Float64, n_max)
@@ -288,7 +288,7 @@ end
 
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
-						includeReg = true, Gamma_min = .1, Gamma_max = 20)
+						includeReg = true, Gamma_min = 1., Gamma_max = 20)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
