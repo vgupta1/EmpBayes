@@ -3,25 +3,16 @@
 #julia -p 3 -L testHarness_Paper.jl tests_3part.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
-spath = "./Results/3Part_plot_presentation_"
-#n_grid = [2^i for i = 5:17]
-n_grid = [2^i for i = 5:15]
-
 numRuns = parse(Int, ARGS[1])
-Gamma_min = parse(Float64, ARGS[2])
-Gamma_max = parse(Float64, ARGS[3])
 
-#extract the relevant things from ARGS
-# theta_l, v_l, c_l = ARGS[2:4]
-# theta_m, v_m, c_m = ARGS[5:7]
-# theta_h, v_h, c_h = ARGS[8:10]
-
+spath = "./Results/3Part_plot_"
+n_grid = [2^i for i = 5:17]
+Gamma_min = 1.
+Gamma_max = 20.
 
 theta_l, v_l, c_l = 0.0, 0.1, 20.001
 theta_m, v_m, c_m = 1.0, 1.0, 20.001
 theta_h, v_h, c_h = 0.3, 4.0, 20.001
-
-
 
 
 tic()
