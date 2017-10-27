@@ -310,50 +310,6 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	return file_name	
 end
 
-
-
-### A by-hand testing multiple Gamma values and their convergence
-# to the true oracle
-function test_MultiGamma(file_out, numRuns, n_grid, seed, gamma_Grid;
-						even_theta = 1., even_v = 2, frac_fit = .1)
-	srand(seed)
-	const n_max = maximum(n_grid)
-
-	#build the sim object with the odd_even setup
-	srand(seed)
-	const n_max = maximum(n_grid)
-	cs = 1./frac_fit * ones(n_max)
-	thetas = zeros(n_max)
-	thetas[2:2:n_max] = even_theta
-	vs = ones(n_max)
-	vs[2:2:n_max] = even_v
-	o = DefaultExp(cs, thetas, vs)
-	muhat = zeros(n_max)
-
-	#output file
-	file_name = "$(file_out)_multi_gamma_$(seed).csv"
-	f = open(file_name, "w")
-	#write a header
-	writecsv(f, ["Run" "n" "Method" "val" "Gamma"])
-
-	for iRun in 1:numRuns
-		sim!(o, muhat)
-		for n in n_grid
-			for Gamma in gamma_Grid
-				xhat, lam = x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gamma)
-				const valOR = dot(o.thetas[1:n], xhat)/n
-				const val = dot(muhat[1:n], xhat)/n - KP.reg_bias(o.cs[1:n], o.vs[1:n], muhat[1:n], lam, Gamma)
-
-				writecsv(f, [iRun n "Oracle" valOR Gamma])			
-				writecsv(f, [iRun n "Estimate" val Gamma])
-			end
-		end
-		flush(f)
-	end
-	close(f)
-	return file_name
-end
-
 #uses the three-part set-up to create density plots
 function create_density_plot(file_name; n=2^17, seed=8675309)
 	srand(seed)
@@ -374,18 +330,57 @@ function create_density_plot(file_name; n=2^17, seed=8675309)
 	thetas[3:3:n] = theta_h
 	vs[3:3:n] = v_h
 	cs[3:3:n] = c_h
-
-	#
-
-
 end
+
+function tauDependence3PartPlot(file_name, n, seed)
+	srand(seed)
+	f = open("$(file_name)_$(n)_$(seed).csv", "w")
+	#present the true value and relative to full-info
+	writecsv(f, ["n" "tauVal" "thetaVal" "RelFullInfo"])
+
+	#sim some data
+	theta_l, v_l, c_l = 0.0, 0.1, 20.001
+	theta_m, v_m, c_m = 1.0, 1.0, 20.001
+	theta_h, v_h, c_h = 0.3, 4.0, 20.001
+
+	cs = ones(n)
+	thetas = ones(n)
+	vs = ones(n)
+
+	thetas[1:3:n] = theta_l
+	vs[1:3:n] = v_l
+	cs[1:3:n] = c_l
+
+	thetas[2:3:n] = theta_m
+	vs[2:3:n] = v_m
+	cs[2:3:n] = c_m
+
+	thetas[3:3:n] = theta_h
+	vs[3:3:n] = v_h
+	cs[3:3:n] = c_h
+
+	muhat = randn(n) ./ sqrt(vs) + thetas
+
+	#compute full-info for scaling
+	xstar, lamstar = KP.x_dual(cs, thetas)
+	zstar = dot(xstar, thetas)/n
+
+	for tau in linspace(0, 5, 500)
+		rs = shrink(muhat, vs, tau)
+		xs, lam = KP.x_dual(cs, rs)
+		thetaVal = dot(xs, thetas)/n
+		writecsv(f, [n tau thetaVal thetaVal/zstar ])
+	end
+	close(f)
+end
+
 
 
 
 
 ########################################################
 #########
-n_grid = [2^i for i = 5:17]
+n_grid = [2^i for i = 5:8]
 #small run for pre-compilation
 #test_Gaussian("./temp/temp_Gaussian", 5, [100, 150], 87, 3, 1, 3)
 #test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
