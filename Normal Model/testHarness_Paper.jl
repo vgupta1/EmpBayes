@@ -59,14 +59,14 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
 
-			#The "Bayes" value.. only possible bc we if we we are in bayesian
-			if :tau0 in fieldnames(o)
-				tic()
-				xs = x(o.cs[1:n], shrink(muhat[1:n], o.vs[1:n], o.tau0))
-				t = toc()
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
-			end
+			# #The "Bayes" value.. only possible bc we if we we are in bayesian
+			# if :tau0 in fieldnames(o)
+			# 	tic()
+			# 	xs = x(o.cs[1:n], shrink(muhat[1:n], o.vs[1:n], o.tau0))
+			# 	t = toc()
+			# 	thetaval = dot(o.thetas[1:n], xs)/n
+			# 	writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
+			# end
 
 			#Tau MLE
 			tic()
@@ -82,12 +82,12 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "EB_MM" thetaval t tauMM])
 
-			#Oracle MSE
-			tic()
-			xs, tau_CV = x_OR_MSE(o.cs[1:n], muhat[1:n], o.thetas[1:n], o.vs[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "OR_MSE" thetaval t tau_CV])
+			# #Oracle MSE
+			# tic()
+			# xs, tau_CV = x_OR_MSE(o.cs[1:n], muhat[1:n], o.thetas[1:n], o.vs[1:n])
+			# t = toc()
+			# thetaval = dot(o.thetas[1:n], xs)/n
+			# writecsv(f, [iRun n "OR_MSE" thetaval t tau_CV])
 
 			#Sure MSE
 			tic()
@@ -96,12 +96,12 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 			thetaval = dot(o.thetas[1:n], xs)/n
 			writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
 
-			#Dirac Stein
-			tic()
-			xs, vals, objs = x_stein_exact(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "DiracStein" thetaval t vals[indmax(objs)]])
+			# #Dirac Stein
+			# tic()
+			# xs, vals, objs = x_stein_exact(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n])
+			# t = toc()
+			# thetaval = dot(o.thetas[1:n], xs)/n
+			# writecsv(f, [iRun n "DiracStein" thetaval t vals[indmax(objs)]])
 
 			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling, altKernel
 			h = n^-.16666
@@ -130,19 +130,19 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
 
 				#From the same values, extract oracles for Other pairs
-				#For Gamma_min =1
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "OracleReg_1" thetaval t Gammahat])
-
 				#For Gamma_min = 5
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
 				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
+
+				#For Gamma_min = 10
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "OracleReg_10" thetaval t Gammahat])
 
 				#Our Stein Approach to Regularization
 				tic()
@@ -154,27 +154,19 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
 
 				#Again, from same values, extract values for gamma_min
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "SteinReg_1" thetaval t Gammahat])
-
-				#Again, from same values, extract values for gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
 				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
-				#RO heuristic for Gamma
-				#eps = .1				
-				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.2815515655446006)
-				t = toc()
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.1" thetaval t 1.2815515655446006])
+				writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
 
+				#RO heuristic for Gamma
 				#eps = .05				
 				tic()
 				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
@@ -199,17 +191,18 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=.1, Gamm
 				writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
 
 				#Use same values to extract for other gamma_min
-				ind_min = findfirst(Gamma_grid .>= 1.0)
-				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "LOO_1" thetaval t GammaLOO])
-
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
 				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
+
+				ind_min = findfirst(Gamma_grid .>= 10.0)
+				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "LOO_10" thetaval t GammaLOO])
+
 			end
 
 		end
