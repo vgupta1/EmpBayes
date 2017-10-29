@@ -1,125 +1,59 @@
 ### Three part Analysis and Plots for the EB methods
-library(tidyverse)
-library(ggplot2)
-library(forcats)
 
-# library(extrafont)
-# font = "Times New Roman"
-# font = "CM Roman"
+source("plottingUtils.R")
 
-library(showtext)
-font_add("Times New Roman", "Times New Roman.ttf")
-showtext_auto()
-font = "Times New Roman"
-
-dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
-spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
-dat$Method = as.factor(dat$Method)
-
-#Reorder the levels in place to make plots consistent.
-#This may need to be supplemented with specific color specs
-dat <- mutate(dat, Method = fct_relevel(Method, 
-                        "FullInfo", "OR", "BoxStein", "DiracStein", 
-                        "OR_MSE", "EB_MLE", "EB_MM", "SURE_MSE", "SAA"))
-
-#Create a new column of "pretty" labels
-dat <- mutate(dat, Label = fct_recode(Method, 
-                    `EB OPT` = "BoxStein", 
-                    `EB Opt Dirac` = "DiracStein", 
-                    `EB MLE` = "EB_MLE", 
-                    `EB MM` = "EB_MM", 
-                    `MSE OR`= "OR_MSE", 
-                    `EB OR` = "OR", 
-                    `EB SURE` = "SURE_MSE")
-              )
-
-#Re-express everything as a fractin of full-info
-t <- dat %>% filter(Method == "FullInfo") %>%
-    select(Run, n, thetaVal)
-dat <- inner_join(dat, t, by=c("Run", "n")) %>%
-        rename(thetaVal = thetaVal.x, 
-               FullInfo = thetaVal.y)  %>%
-      mutate(Ratio = thetaVal/FullInfo)
-
-
-#Summarize the data across runs
-dat.sum <- dat %>% group_by(n, Method) %>%
-            summarise(avg = mean(Ratio), 
-                      avgTau0 = mean(tau0), 
-                      std  = sd(Ratio), 
-                      stdTau0 = sd(tau0), 
-                      up = quantile(Ratio, .9), 
-                      down = quantile(Ratio, .1))
-dat.sum <- mutate(dat.sum, 
-                  Label = fct_recode(Method, 
-                                     `EB OPT` = "BoxStein", 
-                                     `EB Opt Dirac` = "DiracStein", 
-                                     `EB MLE` = "EB_MLE", 
-                                     `EB MM` = "EB_MM", 
-                                     `MSE OR`= "OR_MSE", 
-                                     `EB OR` = "OR", 
-                                     `EB SURE` = "SURE_MSE")
-                  )
-
-pd = position_dodge(.3)
-
-#A Bigger version for the appendix
-g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "EB_MM", "BoxStein", "SURE_MSE", "SAA")) %>%
-  ggplot(aes(n, avg, group=Label, color=Label)) + 
-  geom_point(aes(shape=Label), position=pd) + 
-  geom_line(aes(linetype=Label), position=pd) + 
-  geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
-  theme_minimal(base_size=11) +
-  theme(legend.position = c(.7, .4), 
-        legend.title=element_blank(), 
-        text=element_text(family=font), 
-        legend.direction = "horizontal", 
-        legend.justification = "center") + 
-  scale_x_log10(labels=scales::comma) + 
-  scale_y_continuous(labels=scales::percent) +
-  ylab("(%) of Full-Info")
-g
-
-spath = "../../../../OR Submission_1/Figures/3Part20Big.pdf"
-ggsave(spath, 
-       g, width=6, height=3.25, units="in")
-
+#dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
+dat = read_csv("../Results/3Part_plot_presentation___3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_80.csv")
+dat <- clean_data(dat)
+dat.sum <- summarize_dat(dat)
 
 #A small version for the paper
-g <- dat.sum %>% filter(Method %in% c("OR", "EB_MLE", "BoxStein", "SURE_MSE", "SAA")) %>%
+g <- filter(dat.sum, isBayes, Method != "EB_MM") %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
-  geom_errorbar(aes(ymin=down, ymax=up), position=pd) + 
-  theme_minimal(base_size=10) +
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd) 
+g <- make_pretty(g) + 
   theme(legend.position = c(.65, .3), 
-        legend.title=element_blank(), 
-        text=element_text(family=font), 
         legend.text=element_text(size=8),
         legend.direction = "horizontal", 
         legend.justification = "center") + 
-  scale_x_log10(labels=scales::comma) + 
-  scale_y_continuous(labels=scales::percent) +
   ylab("(%) of Full-Info") +
   guides(shape=guide_legend(nrow=3, byrow=TRUE))
 g
-spath = "../../../../OR Submission_1/Figures/3Part20.pdf"
-ggsave(spath, 
+
+ggsave("../../../../OR Submission_1/Figures/3Part20.pdf", 
        g, width=3, height=3, units="in")
+
+#A Bigger version for the appendix
+g <- filter(dat.sum, isBayes) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd)
+g <- make_pretty(g) + 
+  theme(legend.position = c(.7, .4), 
+        legend.direction = "horizontal", 
+        legend.justification = "center") + 
+  ylab("(%) of Full-Info")
+g
+
+ggsave("../../../../OR Submission_1/Figures/3Part20Big.pdf",
+       g, width=6, height=3.25, units="in")
 
 
 #############
-#is it because people are overshrinking?
-g1 <- dat %>% filter(Method %in% c("BoxStein", "EB_MM", "EB_MLE", "SURE_MSE", "OR"), 
-              n == 131072) %>%
+## densities of the fitted taus
+#VG change n = 131072
+g1 <- filter(dat, isBayes, n == 32768) %>%
   ggplot(aes(tau0)) + 
   geom_density(aes(group=Label, fill=Label), 
-               alpha=.5, linetype="blank") + 
-  xlab("Fitted tau") + ylab("") + 
-  theme_minimal(base_size=10) + 
-  theme(text=element_text(family=font),
-      legend.title=element_blank(), 
-        legend.position=c(.8, .8))
+               alpha=.5, linetype="blank")
+
+g1 <- make_pretty(g1) + 
+  scale_x_continuous()+ scale_y_continuous() + 
+  theme(legend.position="none") + 
+  xlab("Fitted tau") + ylab("")
 
 ##Create an auxiliary table to do the labeling
 dat.labels <- tribble(
@@ -131,10 +65,9 @@ dat.labels <- tribble(
   "EB MLE", 4.8, 6
   )
 
-g1 <- g1 + theme(legend.position="none") + 
-  geom_text(data=dat.labels, 
+g1 <- g1 + geom_text(data=dat.labels, 
               aes(x, y, label=Method), 
-              family=font, 
+              family="Times New Roman", 
               size=2.5, hjust="c", vjust="m")
 g1 <- g1 + xlab(expression(tau))
 
