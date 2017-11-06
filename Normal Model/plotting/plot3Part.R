@@ -2,8 +2,7 @@
 
 source("plottingUtils.R")
 
-#dat = read_csv("../Results/3Part_plot__3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
-dat = read_csv("../Results/3Part_plot_presentation___3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_80.csv")
+dat = read_csv("../Results/3Part_plot___3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
 
@@ -44,8 +43,7 @@ ggsave("../../../../OR Submission_1/Figures/3Part20Big.pdf",
 
 #############
 ## densities of the fitted taus
-#VG change n = 131072
-g1 <- filter(dat, isBayes, n == 32768) %>%
+g1 <- filter(dat, isBayes, n == 131072) %>%
   ggplot(aes(tau0)) + 
   geom_density(aes(group=Label, fill=Label), 
                alpha=.5, linetype="blank")

@@ -18,10 +18,11 @@ clean_data <- function(dat){
                   mutate(Method = factor(Method), 
                          Method = fct_relevel(Method, 
                                               "FullInfo", "OR", 
-                                              "BoxStein", "EB_MLE", "EB_MM", "SURE_MSE", 
+                                              "BoxStein", "EB_MLE", "SURE_MSE", 
                                               "OracleReg", 
-                                              "SteinReg", "LOO", "RO_Eps_.01", "RO_Eps_.05", 
-                                              "SAA")
+                                              "SteinReg", "LOO", "RO_Eps_.01", 
+                                              "SAA", 
+                                              "EB_MM", "RO_Eps_.05")
                            )
 
   ## Now add the clean labels
