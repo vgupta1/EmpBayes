@@ -3,7 +3,8 @@ source("plottingUtils.R")
 
 #VG Chagne this to new full results whencomplete!
 #dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
-dat = read_csv("../Results/portExp_presentation__8675309000.csv_full_80.csv")
+#dat = read_csv("../Results/portExp_presentation__8675309000.csv_full_80.csv")
+dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
 

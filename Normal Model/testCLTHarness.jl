@@ -281,7 +281,7 @@ function test_POAPCLT(file_out, param_path, numRuns, n, N_grid, seed, dist_type)
 	dist = get_dist(dist_type)
 	o = CLTExp(cs, thetas, vs, N_grid[1], dist)
 
-	file_name = "$(file_out)_$(seed).csv"
+	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
 	test_CLTharness(f, numRuns, o, N_grid, includeReg=true)
 	close(f)
