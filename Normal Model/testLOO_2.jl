@@ -5,6 +5,7 @@
 
 numRuns = parse(Int, ARGS[1])
 
+const spath = "./Results/2PartDensity_plot_"
 const param_path = "./Results/2PartDensity_Reg.csv"
 n_grid = [2^i for i = 5:17]
 
