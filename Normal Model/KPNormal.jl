@@ -730,7 +730,7 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs;
     return x_l2reg(cs_unsc, .5 .* (muhat1 + muhat2), vs, Gamma_best)[1], Gamma_grid, objs
 end
 
-#Solves the ellipsoidal robust problem with radius r/n
+#Solves the ellipsoidal robust problem with radius r
 # Algorithm seeks the equivalent "Gamma" for the regularized problem that matches the KKT conditions
 # Corrects gamma_min, gamma_max if not a bracket
 function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
@@ -742,7 +742,7 @@ function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
 
     #Search for a bracket
     #assume this function is increasing.
-    MAX_ITER = 20
+    MAX_ITER = 100
     iter = 1
     if f(gamma_min) > 0 
         println("Gamma min was too large")

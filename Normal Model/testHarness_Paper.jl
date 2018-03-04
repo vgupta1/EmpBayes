@@ -166,6 +166,8 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
 
+				####
+				#This section was used for the intial paper submission Feb2017
 				#RO heuristic for Gamma
 				#eps = .05				
 				tic()
@@ -180,6 +182,14 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
+
+
+				###VG Altered Heuristic eps = .1				
+				tic()
+				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "ALTRO_Eps_.1" thetaval t sqrt(log(1/.1))])
 
 				#Leave one out validation (LOO)
 				tic()
