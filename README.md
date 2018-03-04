@@ -3,7 +3,7 @@
 In the spirit of reproducible research, this repository contains all the code necessary for running the experiments and creating graphs in the paper:  
 > "Gupta, Vishal and Rusmevichientong, Paat, Small-Data, Large-Scale Linear Optimization (Oct 31 1, 2017). Available at SSRN: https://ssrn.com/abstract=3065655."
 
-The full-text of the paper is available on SSRN or the author's [website](www-bcf.usc.edu/~guptavis/research.html).
+The full-text of the paper is available on SSRN or the author's [website](http://www-bcf.usc.edu/~guptavis/research.html).
 
 If you find this code or the paper useful, ***please consider citing it***.
 
