@@ -1,6 +1,6 @@
 ## A small driver file to run the 2nd LOO example and combine
 #run like this
-#julia -p 3 -L testHarness_Paper.jl tests_LOO.jl
+#julia -p 3 -L testHarness_Paper.jl testLOO_2.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
 numRuns = parse(Int, ARGS[1])

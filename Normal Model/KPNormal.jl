@@ -1,5 +1,5 @@
 module KP
-using Distributions, Roots
+using Distributions, Roots, Optim
 
 export x, best_x_tau, x_MM, x_MLE, 
       x_dual, lam, shrink, x_l2reg, 
@@ -766,6 +766,48 @@ function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
     Gammastar = fzero(f, gamma_min, gamma_max)
     return KP.x_l2reg(cs, muhat, vs, Gammastar)
 end
+
+#Solves the robust problem using FW
+#assumes r is radius of ellipse, i.e. rob counterpart has r/n * norm(xs)_vs
+function x_robFW(cs, muhat, vs, r; MAX_ITER = 100)
+    iter = 1
+    const n = length(muhat)
+    sqrt_vs = sqrt.(vs)
+    function grad!(xs, g)
+        g[:] = muhat/n - r/norm(xs ./ sqrt_vs)/n * xs ./ vs 
+    end
+    g = zeros(n)
+    d = zeros(n)
+    xp = x(cs, muhat)
+    prev_value = -Inf
+    while iter < MAX_ITER
+        #solve the subproblem to find a direction.
+        grad!(xp, g)
+        d[:] = x(cs, g)
+
+        #optimize the step
+        #notice the negatives because we are maximizing. 
+        f(step) = -dot(muhat, xp + step * (d - xp))/n +
+                    r/n * norm((xp + step * (d - xp))./ sqrt_vs) 
+        step_star = Optim.minimizer(optimize(f, 0, 1))
+
+        #check to stop 
+        #println("iter:\t $(iter) diff:\t $(abs(-f(step_star) - prev_value))")
+
+        if abs(-f(step_star) - prev_value) <= 1e-6
+            break
+        else
+            prev_value = -f(step_star)
+        end
+
+        xp += step_star * (d - xp)
+        iter += 1
+    end
+    @assert iter < MAX_ITER "Maximum Iterations reached in FW"
+    println(prev_value)
+    return xp
+end
+
 
 
 end #ends module

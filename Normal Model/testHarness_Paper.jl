@@ -69,18 +69,18 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 			# end
 
 			#Tau MLE
-			tic()
-			tauMLE, xs = x_MLE(o.cs[1:n], muhat[1:n], o.vs[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "EB_MLE" thetaval t tauMLE])
+			# tic()
+			# tauMLE, xs = x_MLE(o.cs[1:n], muhat[1:n], o.vs[1:n])
+			# t = toc()
+			# thetaval = dot(o.thetas[1:n], xs)/n
+			# writecsv(f, [iRun n "EB_MLE" thetaval t tauMLE])
 
-			#Tau MM
-			tic()
-			tauMM, xs = x_MM(o.cs[1:n], muhat[1:n], o.vs[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "EB_MM" thetaval t tauMM])
+			# #Tau MM
+			# tic()
+			# tauMM, xs = x_MM(o.cs[1:n], muhat[1:n], o.vs[1:n])
+			# t = toc()
+			# thetaval = dot(o.thetas[1:n], xs)/n
+			# writecsv(f, [iRun n "EB_MM" thetaval t tauMM])
 
 			# #Oracle MSE
 			# tic()
@@ -90,11 +90,11 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 			# writecsv(f, [iRun n "OR_MSE" thetaval t tau_CV])
 
 			#Sure MSE
-			tic()
-			xs, tau_CV = x_sure_MSE(o.cs[1:n], muhat[1:n], o.vs[1:n])
-			t = toc()
-			thetaval = dot(o.thetas[1:n], xs)/n
-			writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
+			# tic()
+			# xs, tau_CV = x_sure_MSE(o.cs[1:n], muhat[1:n], o.vs[1:n])
+			# t = toc()
+			# thetaval = dot(o.thetas[1:n], xs)/n
+			# writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
 
 			# #Dirac Stein
 			# tic()
@@ -138,11 +138,11 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
 
 				#For Gamma_min = 10
-				ind_min = findfirst(Gamma_grid .>= 10.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "OracleReg_10" thetaval t Gammahat])
+				# ind_min = findfirst(Gamma_grid .>= 10.0)
+				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				# xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "OracleReg_10" thetaval t Gammahat])
 
 				#Our Stein Approach to Regularization
 				tic()
@@ -160,36 +160,42 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
-				ind_min = findfirst(Gamma_grid .>= 10.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
+				# ind_min = findfirst(Gamma_grid .>= 10.0)
+				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				# xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
 
-				####
-				#This section was used for the intial paper submission Feb2017
-				#RO heuristic for Gamma
-				#eps = .05				
+				#Old RO method with new threshold
+				# tic()
+				# xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)))
+				# t = toc()
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "AltRO_Eps_.1" thetaval t sqrt(2*log(1/.1))])
+
+				#NEW RO method with new threshold 
 				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
+				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)))
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
+				writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t sqrt(2*log(1/.1))])
 
-				#eps = .01				
-				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.326347874040845)
-				t = toc()
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
+				# ####
+				# #This section was used for the intial paper submission Feb2017
+				# #RO heuristic for Gamma
+				# #eps = .05				
+				# tic()
+				# xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
+				# t = toc()
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
 
-
-				###VG Altered Heuristic eps = .1				
-				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 1.6448536269514717)
-				t = toc()
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "ALTRO_Eps_.1" thetaval t sqrt(log(1/.1))])
+				# #eps = .01				
+				# tic()
+				# xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], 2.326347874040845)
+				# t = toc()
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
 
 				#Leave one out validation (LOO)
 				tic()
@@ -207,12 +213,11 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
 
-				ind_min = findfirst(Gamma_grid .>= 10.0)
-				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "LOO_10" thetaval t GammaLOO])
-
+				# ind_min = findfirst(Gamma_grid .>= 10.0)
+				# GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+				# xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
+				# thetaval = dot(o.thetas[1:n], xs)/n
+				# writecsv(f, [iRun n "LOO_10" thetaval t GammaLOO])
 			end
 
 		end
