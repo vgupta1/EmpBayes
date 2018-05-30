@@ -315,7 +315,8 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	vs = dat[1:n_max, 2]
 
 	#rescale cs so budget is sensible. 
-	cs /= quantile(cs, .2)
+	#VG This needs to be fixed for LOO 
+	#cs /= quantile(cs, .2)
 
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"

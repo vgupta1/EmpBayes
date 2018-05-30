@@ -5,7 +5,7 @@ library(stringr)
 dist_type = "exponential"
 dist_type = "t"
  dist_type = "pareto"
-#dist_type = "uniform"
+dist_type = "uniform"
 dist_type = "bernoulli"
  
 dat_path = str_c("../Results/POAPCLT_plot___", 
@@ -31,6 +31,16 @@ g <- make_pretty(g) +
         legend.direction="horizontal") + 
   ylab("(%) of Full-Info") + xlab("S")
 g
+
+###
+#
+g <- g + theme(legend.position = c(.5, .9))
+ggsave("student_t_emp_bayes.pdf", g, width=4, height=4, units="in")
+
+ggsave("uniform_emp_bayes.pdf", g, width=4, height=4, units="in")
+
+
+###
 
 spath = str_c("../../../../OR Submission_1/Figures/POAPCLT_Bayes_",
               dist_type, ".pdf")
@@ -68,6 +78,8 @@ g <- make_pretty(g) +
   ylab("(%) of Full-Info") + xlab("S")
 g
 
+spath = str_c("../../../EmpBayes/POAPCLT_REG_Pres_", dist_type, ".pdf")
+
 spath = str_c("../../../../OR Submission_1/Figures/POAPCLT_Reg_",
               dist_type, ".pdf")
 
@@ -87,4 +99,6 @@ g
 ggsave(spath, 
        g, width=3.25, height=3.25, units="in")
 
+ggsave(spath,
+       g, width = 5.35, height=9.04, units="in")
 
