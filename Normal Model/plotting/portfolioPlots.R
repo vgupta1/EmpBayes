@@ -1,12 +1,11 @@
 ## POAP Experiment Plots
 source("plottingUtils.R")
 
-#VG Chagne this to new full results whencomplete!
-#dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
-#dat = read_csv("../Results/portExp_presentation__8675309000.csv_full_80.csv")
+###
 dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
+dat.sum2 <- summarize_dat(dat, FALSE)
 
 ## plot for main text
 g <- dat.sum %>% filter(isBayes, Method != "EB_MM") %>%
@@ -29,6 +28,33 @@ g <- make_pretty(g) +
 g
 ggsave("../../../../OR Submission_1/Figures/portPerfBayes.pdf", 
        g, width=3.25, height=3.25, units="in")
+
+
+## The absolute performance version
+g <- dat.sum2 %>% filter(isBayes, Method != "EB_MM") %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd)
+
+g <- make_pretty(g) + 
+  theme(legend.direction = "horizontal",
+        legend.position=c(.5, .1),
+        legend.justification = "center") +
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  ylab("(%) of Full-Info") + 
+  scale_y_continuous(labels=scales::percent, 
+                     limits = c(.70, .97),
+                     breaks=seq(.75, .95, .1)) + 
+  scale_x_log10(labels=scales::comma) 
+
+g <- g + scale_y_continuous() + 
+  ylab("Scaled Performance")
+ggsave("../../../../OR Submission_1/Figures/portPerfBayes_Abs.pdf", 
+       g, width=3.25, height=3.25, units="in")
+
+##############
+
 
 
 #####
@@ -72,6 +98,35 @@ g
 
 ggsave("../../../../OR Submission_1/Figures/portPerfReg.pdf", 
        g, width=3.25, height=3.25, units="in")
+
+####
+# The absolute perf version
+#################
+#Regularization versions
+########
+g <- filter(dat.sum2, isReg, Method != "RO_Eps_.05") %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=down, ymax=up), position=pd)
+
+g <- make_pretty(g) + 
+  theme(legend.direction = "horizontal", 
+        legend.position=c(.5, .1), 
+        legend.justification =  "center") +
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  ylab("(%) of Full-Info") +
+  scale_y_continuous(labels=scales::percent, limits =c(.7, .97),
+                     breaks=seq(.75, .95, .1))
+g
+
+g + scale_y_continuous() +
+  ylab("Scaled Performance")
+
+ggsave("../../../../OR Submission_1/Figures/portPerfReg_Abs.pdf", 
+       g, width=3.25, height=3.25, units="in")
+
+
 
 ### Make a bigger version for appendix
 g <- dat.sum %>% filter(isReg) %>%

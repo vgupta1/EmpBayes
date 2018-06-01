@@ -58,15 +58,20 @@ make_pretty <- function(plt){
 
 ##most general summarizing for data... 
 ##
-summarize_dat <- function(dat){
+summarize_dat <- function(dat, ratio=TRUE){
   #Re-express everything as a fraction of Oracle value
     t <- dat %>% filter(Method == "FullInfo") %>%
     select(Run, n, thetaVal)
   dat <- inner_join(dat, t, by=c("Run", "n")) %>%
     rename(thetaVal = thetaVal.x, 
-           FullInfo = thetaVal.y)  %>%
-    mutate(Ratio = thetaVal/FullInfo)
-  
+           FullInfo = thetaVal.y)  
+  if (ratio) {
+    dat <- mutate(dat, Ratio=thetaVal/FullInfo)
+  }else
+  {
+    dat <- mutate(dat, Ratio=thetaVal)
+  }
+
   dat.sum <- dat %>% group_by(n, Method, Label, isBayes, isReg) %>%
     summarise(avg = mean(Ratio), 
               avgTau0 = mean(tau0), 
@@ -74,6 +79,8 @@ summarize_dat <- function(dat){
               stdTau0 = sd(tau0), 
               up = quantile(Ratio, .9), 
               down = quantile(Ratio, .1), 
+              upTau0 = quantile(tau0, .9), 
+              downTau0 = quantile(tau0, .1), 
               avgTime = mean(time), 
               upTime = quantile(time, .9), 
               downTime = quantile(time, .1))
