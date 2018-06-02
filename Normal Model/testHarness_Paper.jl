@@ -10,7 +10,7 @@ type DefaultExp
 end
 
 function sim!(o, muhat)
-	muhat[:] = randn!(muhat) ./ sqrt(o.vs) + o.thetas
+	muhat[:] = randn!(muhat) ./ sqrt.(o.vs) + o.thetas
 end
 
 ######################
@@ -40,7 +40,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
 		sim!(o, muhat)
-		noise[:] = randn!(noise) ./ sqrt(o.vs)
+		noise[:] = randn!(noise) ./ sqrt.(o.vs)
 
 		for n in n_grid
 			#Compute performance of each method
@@ -375,7 +375,7 @@ function tauDependence3PartPlot(file_name, n, seed)
 	vs[3:3:n] = v_h
 	cs[3:3:n] = c_h
 
-	muhat = randn(n) ./ sqrt(vs) + thetas
+	muhat = randn(n) ./ sqrt.(vs) + thetas
 
 	#compute full-info for scaling
 	xstar, lamstar = KP.x_dual(cs, thetas)

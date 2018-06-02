@@ -25,7 +25,7 @@ function sim!(o::CLTExp, muhat)
 	for k = 1:o.N
 		muhat[:] += (rand(o.dist, n) - shift) * scale
 	end
-	muhat[:] = muhat[:] ./ sqrt(o.vs) + o.thetas
+	muhat[:] = muhat[:] ./ sqrt.(o.vs) + o.thetas
 end
 
 
@@ -60,7 +60,7 @@ function test_CLTharness(f, numRuns, o, N_grid; includeReg=false)
 			#reset the object and simulate
 			o.N = N
 			sim!(o, muhat)
-			noise[:] = randn!(noise) ./ sqrt(o.vs)
+			noise[:] = randn!(noise) ./ sqrt.(o.vs)
 
 			#SAA
 			tic()
