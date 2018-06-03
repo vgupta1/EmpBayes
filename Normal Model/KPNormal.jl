@@ -769,7 +769,7 @@ end
 
 #Solves the robust problem using FW
 #assumes r is radius of ellipse, i.e. rob counterpart has r/n * norm(xs)_vs
-function x_robFW(cs, muhat, vs, r; MAX_ITER = 100)
+function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
     iter = 1
     const n = length(muhat)
     sqrt_vs = sqrt.(vs)
@@ -794,7 +794,7 @@ function x_robFW(cs, muhat, vs, r; MAX_ITER = 100)
         #check to stop 
         #println("iter:\t $(iter) diff:\t $(abs(-f(step_star) - prev_value))")
 
-        if abs(-f(step_star) - prev_value) <= 1e-6
+        if abs(-f(step_star) - prev_value) <= TOL
             break
         else
             prev_value = -f(step_star)
@@ -803,8 +803,14 @@ function x_robFW(cs, muhat, vs, r; MAX_ITER = 100)
         xp += step_star * (d - xp)
         iter += 1
     end
+    #Dumping in case of failure.
+    if iter > MAX_ITER
+        f = open("BadRobust_Example_$(r).csv", "w")
+        writecsv(f, [cs muhat vs ])
+        close(f)
+    end
+
     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
-    println(prev_value)
     return xp
 end
 

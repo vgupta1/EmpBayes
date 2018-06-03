@@ -175,7 +175,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 
 				#NEW RO method with new threshold 
 				tic()
-				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)))
+				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)), TOL=1e-4)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
 				writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t sqrt(2*log(1/.1))])
