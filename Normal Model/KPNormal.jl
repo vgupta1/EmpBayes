@@ -803,12 +803,13 @@ function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
         xp += step_star * (d - xp)
         iter += 1
     end
-    #Dumping in case of failure.
-    if iter > MAX_ITER
-        f = open("BadRobust_Example_$(r).csv", "w")
-        writecsv(f, [cs muhat vs ])
-        close(f)
-    end
+    # #Dumping in case of failure.
+    # if iter > MAX_ITER
+    #     f = open("BadRobust_Example_$(r).csv", "w")
+    #     writecsv(f, [cs muhat vs ])
+    #     close(f)
+    #     exit()
+    # end
 
     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
     return xp
