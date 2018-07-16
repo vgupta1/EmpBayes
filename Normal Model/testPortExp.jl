@@ -13,7 +13,7 @@ numRuns = parse(Int, ARGS[1])
 
 ##VG The original experiments for Submission 1 were run with GammaMin, Gammamax = 1, 20.
 tic()
-a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309000, param_path, Gamma_min=5, Gamma_max=40.)
+a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309, param_path, Gamma_min=5, Gamma_max=40.)
 b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path, Gamma_min=5, Gamma_max=40.)
 c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path, Gamma_min=5, Gamma_max=40.)
 d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path, Gamma_min=5, Gamma_max=40.)

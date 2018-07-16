@@ -33,6 +33,8 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 	noise = zeros(Float64, n_max)
+	x_t  = zeros(Float64, n_max)
+	lam_t = 0.
 
 	#write a header
 	writecsv(f, ["Run" "n" "Method" "thetaVal" "time" "tau0"])
@@ -122,7 +124,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 			if includeReg
 				#Oracle Regularization
 				tic()
-				xs, Gamma_grid, objs = KP.x_l2reg_CV_warm(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], 
+				xs, Gamma_grid, objs = KP.x_l2reg_CV(o.cs[1:n], muhat[1:n], o.vs[1:n], o.thetas[1:n], 
 															Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
@@ -133,8 +135,8 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#For Gamma_min = 5
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
+				KP.x_l2reg2!(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat, x_t, lam_t)
+				thetaval = dot(o.thetas[1:n], x_t[1:n])/n
 				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
 
 				#For Gamma_min = 10
@@ -156,8 +158,8 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Again, from same values, extract values for gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
+				KP.x_l2reg2!(o.cs[1:n], muhat[1:n], o.vs[1:n], Gammahat, x_t[1:n], lam_t)
+				thetaval = dot(o.thetas[1:n], x_t[1:n])/n
 				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
 				# ind_min = findfirst(Gamma_grid .>= 10.0)
@@ -219,8 +221,8 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Use same values to extract for other gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				xs = KP.x_l2reg(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO)[1]
-				thetaval = dot(o.thetas[1:n], xs)/n
+				KP.x_l2reg2!(o.cs[1:n], muhat[1:n], o.vs[1:n], GammaLOO, x_t[1:n], lam_t)
+				thetaval = dot(o.thetas[1:n], x_t[1:n])/n
 				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
 
 				# ind_min = findfirst(Gamma_grid .>= 10.0)
