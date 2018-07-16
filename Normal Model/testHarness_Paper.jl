@@ -166,22 +166,32 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				# thetaval = dot(o.thetas[1:n], xs)/n
 				# writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
 
-				#Old RO method with new threshold
-				tic()
-				xs, lam = KP.x_rob(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)))
-				t = toc()
-				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "AltRO_Eps_.1" thetaval t sqrt(2*log(1/.1))])
-
 				#NEW RO method with new threshold 
 				tic()
-				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], sqrt(2*log(1/.1)), TOL=1e-4)
+				thresh = sqrt(2*log(1/.1))
+				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], thresh, TOL=1e-4)
 				t = toc()
 				thetaval = dot(o.thetas[1:n], xs)/n
-				writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t sqrt(2*log(1/.1))])
+				writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t thresh])
+
+				tic()
+				thresh = sqrt(2*log(1/.05))
+				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], thresh, TOL=1e-4)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "FWRO_Eps_.05" thetaval t thresh])
+
+				tic()
+				thresh = sqrt(2*log(1/.01))
+				xs = KP.x_robFW(o.cs[1:n], muhat[1:n], o.vs[1:n], thresh, TOL=1e-4)
+				t = toc()
+				thetaval = dot(o.thetas[1:n], xs)/n
+				writecsv(f, [iRun n "FWRO_Eps_.01" thetaval t thresh])
+
 
 				# ####
 				# #This section was used for the intial paper submission Feb2017
+				# # The thresholds have been updated.  If want to rerun, consider using the FW implementation too.  
 				# #RO heuristic for Gamma
 				# #eps = .05				
 				# tic()
