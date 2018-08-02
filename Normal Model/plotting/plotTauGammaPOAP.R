@@ -1,7 +1,7 @@
 ## POAP Experiment Plots
 source("plottingUtils.R")
 
-dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
+dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
 
@@ -32,7 +32,7 @@ g <- dat.sum %>% filter(!isBayes, ! Method %in% c("SAA", "FullInfo")) %>%
   geom_line(aes(linetype=Label), position=pd) + 
   geom_errorbar(aes(ymin=downTau0, ymax=upTau0), position=pd)
 
-#Create a graph of Tau0
+#Create a graph of Gamma
 g <- make_pretty(g) + scale_y_continuous() + 
   ylab("Gamma") + 
   theme(legend.position=c(.8, .6))

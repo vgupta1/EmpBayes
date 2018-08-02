@@ -3,8 +3,10 @@ source("plottingUtils.R")
 
 ###
 #Old data from original publication.  Needs to be regenerated.  
-dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
-dat = read_csv("../Results/portExp__8675309000.csv_full_100.csv")
+#dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
+
+#New data
+dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
 
 
 dat <- clean_data(dat)
@@ -84,7 +86,7 @@ ggsave("../../../../OR Submission_1/Figures/portPerfBayesBig.pdf",
 #################
 #Regularization versions
 ########
-g <- filter(dat.sum, isReg, Method != "RO_Eps_.05") %>%
+g <- filter(dat.sum, isReg, Method != "FWRO_Eps_.05") %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -96,7 +98,7 @@ g <- make_pretty(g) +
         legend.justification =  "center") +
   guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
   ylab("(%) of Full-Info") +
-  scale_y_continuous(labels=scales::percent, limits =c(.7, .97),
+  scale_y_continuous(labels=scales::percent, limits =c(.4, 1.2),
                     breaks=seq(.75, .95, .1))
 g
 

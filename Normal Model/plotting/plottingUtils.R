@@ -13,16 +13,16 @@ clean_data <- function(dat){
   #Drop the stuff you don't want to deal with for simplicty
   dat <- dat %>% filter(!Method %in% c("DiracStein", "LOO_5", "LOO_10",
                                        "OR_MSE", "OracleReg_5", "OracleReg_10",
-                                       "RO_Eps_.1", "SteinReg_5", "SteinReg_10")
+                                       "FWRO_Eps_.1", a"SteinReg_5", "SteinReg_10")
                         ) %>%
                   mutate(Method = factor(Method), 
                          Method = fct_relevel(Method, 
                                               "FullInfo", "OR", 
                                               "BoxStein", "EB_MLE", "SURE_MSE", 
                                               "OracleReg", 
-                                              "SteinReg", "LOO", "RO_Eps_.01", 
+                                              "SteinReg", "LOO", "FWRO_Eps_.01", 
                                               "SAA", 
-                                              "EB_MM", "RO_Eps_.05")
+                                              "EB_MM", "FWRO_Eps_.05")
                            )
 
   ## Now add the clean labels
@@ -35,8 +35,8 @@ clean_data <- function(dat){
                               `EB SURE` = "SURE_MSE", 
                               `Reg OR` = "OracleReg", 
                               `Reg OPT` = "SteinReg",
-                              `RO 1%` = "RO_Eps_.01", 
-                              `RO 5%` = "RO_Eps_.05")
+                              `RO 1%` = "FWRO_Eps_.01", 
+                              `RO 5%` = "FWRO_Eps_.05")
                  )
   #add a filter for bayes vs reg
   dat <- mutate(dat, isBayes = Method %in% c("OR", "BoxStein", "EB_MLE", "EB_MM", "SURE_MSE", "SAA"), 
