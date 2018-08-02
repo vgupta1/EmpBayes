@@ -409,7 +409,8 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
                     lam_guess::Float64 = -1., ROOT_TOL::Float64=1e-6, TOL::Float64=1e-6)
     const n = length(cs)
     const sqrt_vmin = sqrt(minimum(vs))
-    resize!(x_out, n)
+    @assert length(x_out) == n "Return vector wrong size"
+    #resize!(x_out, n)
 
     #Find lambda by making knapsack tight
     function f(lam)
