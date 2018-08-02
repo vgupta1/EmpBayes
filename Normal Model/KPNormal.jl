@@ -350,12 +350,24 @@ end
 ### Regularization based Methods
 #helper function.  not to be exposed
 #cs are unscaled (each element order unity)
+# function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
+#     const t = muhat_j - lam * cj
+#     out = max(t, 0) - max(t - Gamma * sqrt_vmin/vj, 0)
+#     return out * vj/Gamma/sqrt_vmin 
+# end
+
 function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
     const t = muhat_j - lam * cj
-    out = max(t, 0) - max(t - Gamma * sqrt_vmin/vj, 0)
-    out *= vj/Gamma/sqrt_vmin 
-    return out
+    if t < 0
+        return 0.
+    elseif t < Gamma * sqrt_vmin / vj
+        return t * vj / Gamma / sqrt_vmin 
+    else
+        return 1.
+    end
 end
+
+
 
 #cs are unscaled (each element order unity)
 #returns xs, lam
@@ -401,11 +413,15 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
 
     #Find lambda by making knapsack tight
     function f(lam)
-        out = 0.
-        for jx = 1:n
-            @inbounds out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-        end
-        out / n  - 1.
+
+        ##VG Trial?
+        # out = 0.
+        # for jx = 1:n
+        #     out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+        # end
+        # out / n - 1
+
+        mean(cs .* g_j.(Gamma, lam, cs, muhat, vs, sqrt_vmin)) - 1
     end
 
     #if you have a previous lambda
@@ -420,9 +436,11 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
             lb = .5*ub
         else #You got lucky!!           
             #exit early
-            for ix = 1:n
-                x_out[jx] = g_j(Gamma, lam_guess, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-            end
+            #VG Trial
+            # for jx = 1:n
+            #     x_out[jx] = g_j(Gamma, lam_guess, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+            # end
+            x_out[:] = g_j.(Gamma, lam_guess, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
             lam_out = lam_guess
             return nothing
         end
@@ -454,19 +472,19 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
     end
 
     #refine solution. Default to bisection if goes badly.
-    lamstar = 0.
     try
-        lamstar = find_zero(lam -> f(lam), [lb, ub], FalsePosition(), ftol=ROOT_TOL)
+        lam_out = find_zero(lam -> f(lam), [lb, ub], FalsePosition(), ftol=ROOT_TOL)
     catch
         println("False Position Failed")
-        lamstar = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
+        lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
     end 
        
-    for jx = 1:n
-        x_out[jx] = g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-    end
-    lam_out = lamstar
-    return nothing
+    ##VG Grial?
+    # for jx = 1:n
+    #     x_out[jx] = g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+    # end
+    x_out[:] = g_j.(Gamma, lam_out, cs, muhat, vs, sqrt_vmin)
+    nothing
 end
 
 
@@ -806,6 +824,7 @@ function reg_bias(cs, vs, muhats, lam, Gamma)
     out / Gamma / sqrt_vmin / n
 end
 
+
 #A smarter way to do this would leverage smoothness in gamma to update solutions
 #rather than resolve
 function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
@@ -822,9 +841,9 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
     for ix = 1:length(Gamma_grid)
         #use warm-start information
         if ix > 1
-            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs[:], lam, lam_guess=lam)
+            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs, lam, lam_guess=lam)
         else
-            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs[:], lam)
+            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs, lam)
         end
         objs[ix] = dot(muhat, xs)/n - reg_bias(cs_unsc, vs, muhat, lam, Gamma_grid[ix])
 
@@ -834,7 +853,7 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
         end
     end    
     Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small ", Gamma_min, " ", Gamma_max)
-    x_l2reg2!(cs_unsc, muhat, vs, Gamma_best, xs[:], lam)
+    x_l2reg2!(cs_unsc, muhat, vs, Gamma_best, xs, lam)
     return xs, Gamma_grid, objs
 end
 
