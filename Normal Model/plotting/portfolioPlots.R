@@ -3,10 +3,16 @@ source("plottingUtils.R")
 
 ###
 #Old data from original publication.  Needs to be regenerated.  
-#dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
+dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
 
 #New data
 dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
+
+####
+#temp data for bug fixing
+dat = read_csv("../temp/temp_PortExp_8675309.csv")
+dat %>% filter(Method %in%c("FullInfo"), n == 32)
+######
 
 
 dat <- clean_data(dat)

@@ -13,7 +13,7 @@ clean_data <- function(dat){
   #Drop the stuff you don't want to deal with for simplicty
   dat <- dat %>% filter(!Method %in% c("DiracStein", "LOO_5", "LOO_10",
                                        "OR_MSE", "OracleReg_5", "OracleReg_10",
-                                       "FWRO_Eps_.1", a"SteinReg_5", "SteinReg_10")
+                                       "FWRO_Eps_.1", "SteinReg_5", "SteinReg_10")
                         ) %>%
                   mutate(Method = factor(Method), 
                          Method = fct_relevel(Method, 
