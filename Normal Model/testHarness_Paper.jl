@@ -334,8 +334,8 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	vs = dat[1:n_max, 2]
 
 	#rescale cs so budget is sensible. 
-	#VG This needs to be fixed for LOO 
-	#cs /= quantile(cs, .2)
+	#VG To generate the LOO Plots, you need to undo this scaling.
+	cs /= quantile(cs, .2)
 
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
@@ -421,6 +421,6 @@ n_grid = [2^i for i = 5:8]
 #test_OddEven("./temp/temp_OddEvenReg", 5, [100, 150], 8675309000, 2.1, includeReg=true)
 test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_mtn1.csv")
 
-@time test_ReadData("./temp/temp_PortExp", 5, [2^13, 2^14, 2^15], 8675309, "./Results/param_portExp_mtn1.csv")
+@time test_ReadData("./temp/temp_PortExp", 5, [32], 8675309, "./Results/param_portExp_mtn1.csv")
 
 
