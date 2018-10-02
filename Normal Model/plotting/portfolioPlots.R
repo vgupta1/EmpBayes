@@ -1,20 +1,21 @@
 ## POAP Experiment Plots
 source("plottingUtils.R")
 
+###For bug fix
+#dat = read_csv("../temp/temp_PortExp_8675309.csv")
+
+#dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
+#dat = read_csv("../Results/portExp__8675309000.csv_full_100.csv")
+
+
+dat %>% filter(Method %in% c("FullInfo"), n==32)
+dat %>% filter(n==32, Run < 4)  %>% arrange(Method) %>% View()
+
 ###
-#Old data from original publication.  Needs to be regenerated.  
-dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
-
-#New data
-dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
-
-####
-#temp data for bug fixing
-dat = read_csv("../temp/temp_PortExp_8675309.csv")
-dat %>% filter(Method %in%c("FullInfo"), n == 32)
-######
 
 
+###
+#dat = read_csv("../Results/portExp__8675309000.csv_full_200.csv")
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
 dat.sum2 <- summarize_dat(dat, FALSE)
@@ -92,7 +93,7 @@ ggsave("../../../../OR Submission_1/Figures/portPerfBayesBig.pdf",
 #################
 #Regularization versions
 ########
-g <- filter(dat.sum, isReg, Method != "FWRO_Eps_.05") %>%
+g <- filter(dat.sum, isReg, Method != "RO_Eps_.05") %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -104,7 +105,7 @@ g <- make_pretty(g) +
         legend.justification =  "center") +
   guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
   ylab("(%) of Full-Info") +
-  scale_y_continuous(labels=scales::percent, limits =c(.4, 1.2),
+  scale_y_continuous(labels=scales::percent, limits =c(.7, .97),
                     breaks=seq(.75, .95, .1))
 g
 
@@ -222,6 +223,15 @@ dat.sum %>% filter(Method %in% c("SAA")) %>%
   select(n, Label, avgTime) %>%
   write_csv("../Results/port_avg_time_saa.csv")
 
+
+
+#############
+###VG Delte after 1 Oct ``
+############
+dat.sum %>% filter(isReg) %>% 
+  ggplot(aes(n, avgTau0, color=Method, group=Method)) + 
+  geom_point() + geom_line() + 
+  theme_bw() + scale_x_log10()
 
 
 

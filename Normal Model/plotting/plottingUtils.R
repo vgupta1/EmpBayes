@@ -40,7 +40,7 @@ clean_data <- function(dat){
                  )
   #add a filter for bayes vs reg
   dat <- mutate(dat, isBayes = Method %in% c("OR", "BoxStein", "EB_MLE", "EB_MM", "SURE_MSE", "SAA"), 
-                     isReg = Method %in% c("OracleReg", "SteinReg", "LOO", "RO_Eps_.01", "RO_Eps_.05", "SAA")
+                     isReg = Method %in% c("OracleReg", "SteinReg", "LOO", "FWRO_Eps_.01", "FWRO_Eps_.05", "SAA")
                 )
     return(dat)  
 }

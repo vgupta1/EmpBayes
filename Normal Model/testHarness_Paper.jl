@@ -45,7 +45,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 		noise[:] = randn!(noise) ./ sqrt.(o.vs)
 
 		for n in n_grid
-			#Take Views on Evrything
+			#Take Views on Everything to speed up garbage collection
 			x_t = view(xs, 1:n)
 			vs  = view(o.vs, 1:n)
 			cs  = view(o.cs, 1:n)
@@ -142,11 +142,12 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#For Gamma_min = 5
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t, lam_t)
+				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
 				thetaval = dot(thetas, x_t)/n
 				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
 
 				#For Gamma_min = 10
+				#VG Needs fixing to match new signatures if you want to uncomment
 				# ind_min = findfirst(Gamma_grid .>= 10.0)
 				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
 				# xs = KP.x_l2reg(cs, muhat_t, vs, Gammahat)[1]
@@ -165,10 +166,11 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Again, from same values, extract values for gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t, lam_t)
+				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
 				thetaval = dot(thetas, x_t)/n
 				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
+				#VG these need fixing to match new signatures if you want to uncomment
 				# ind_min = findfirst(Gamma_grid .>= 10.0)
 				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
 				# xs = KP.x_l2reg(cs, muhat_t, vs, Gammahat)[1]
@@ -228,7 +230,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Use same values to extract for other gamma_min
 				ind_min = findfirst(Gamma_grid .>= 5.0)
 				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t, lam_t)
+				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
 				thetaval = dot(thetas, x_t)/n
 				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
 

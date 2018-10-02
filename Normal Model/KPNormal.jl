@@ -12,7 +12,7 @@ export x, best_x_tau, x_MM, x_MLE,
 function x_dual(cs_unsc, rs)
     const n = length(rs)
     ratios = rs ./ cs_unsc
-    cs = cs_unsc/n #makes a copy
+    cs = cs_unsc/n #deliberately makes a copy
     indx = sortperm(ratios, rev=true)
     out = zeros(Float64, length(indx))
     weight = 0.
@@ -46,13 +46,13 @@ end
 x(cs_unsc, rs) = x_dual(cs_unsc, rs)[1]
 
 function lam(muhat, tau, vs, cs_unsc)
-    rs = shrink(muhat, vs, tau)
+    rs = shrink.(muhat, vs, tau)
     x_dual(cs_unsc, rs)[2]
 end
 
 function dual_obj(muhat, tau, vs, cs_unsc)
     l = lam(muhat, tau, vs, cs_unsc)
-    l + mean(max(0, shrink(muhat, vs, tau) .- l * cs_unsc))    
+    l + mean(max(0, shrink.(muhat, vs, tau) .- l * cs_unsc))    
 end
 
 
@@ -200,9 +200,9 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
     ##assume that solving one last time is short relative to costs
     indmax = findfirst(vals .>= max_tau0)
     if indmax == length(vals)
-        max_xs = x(cs_unsc, shrink(muhat, vs, 1.1*max_tau0))
+        max_xs = x(cs_unsc, shrink.(muhat, vs, 1.1*max_tau0))
     else
-        max_xs = x(cs_unsc, shrink(muhat, vs, .5*max_tau0 + .5*vals[indmax + 1]))
+        max_xs = x(cs_unsc, shrink.(muhat, vs, .5*max_tau0 + .5*vals[indmax + 1]))
     end
 
     return max_xs, vals, objs 
@@ -221,7 +221,7 @@ function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         objs[ix] = dot(thetas, xs)/n
 
@@ -231,15 +231,15 @@ function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
         end
     end
     #solving once more is fast compared to rest of algorithm
-    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ### Empirical Bayes Type Estimators
 ##EB Method of Moments
 function x_MM(cs, muhat, vs)
-	tau_mm = 1/mean(muhat.^2 - 1./vs)
-	tau_mm = max(0, tau_mm)
-	tau_mm, x(cs, shrink(muhat, vs, tau_mm))
+	tau_mm = 1/mean(@. muhat^2 - 1/vs )
+	tau_mm = max.(0, tau_mm)
+	tau_mm, x(cs, shrink.(muhat, vs, tau_mm))
 end
 
 ##EB MLE 
@@ -259,7 +259,7 @@ function x_MLE(cs, muhat, vs, max_bnd = 1e2)
         if v0 >= max_bnd
             return -1, x(cs, muhat)
         end
-    return 1/v0, x(cs, shrink(muhat, vs, 1/v0))
+    return 1/v0, x(cs, shrink.(muhat, vs, 1/v0))
     end
 end
 
@@ -271,7 +271,7 @@ end
 #Run on muhat1, muhat2 to get hold-out
 function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)   
     function deriv_f(tau0)
-        rs = shrink(muhat1, vs, tau0)
+        rs = shrink.(muhat1, vs, tau0)
         mean((muhat2 - rs) .* rs./(vs + tau0))
     end
     #bracketting tau0
@@ -291,7 +291,7 @@ function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
     muhat = .5 * (muhat1 + muhat2)
-    return x(cs, shrink(muhat1, vs, tau_star)), tau_star
+    return x(cs, shrink.(muhat1, vs, tau_star)), tau_star
 end
 
 ##Selects tau0 to minimize oracle MSE
@@ -320,7 +320,7 @@ function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 10)
     if iter != max_iter
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
-    return x(cs, shrink(muhat, vs, tau_star)), tau_star
+    return x(cs, shrink.(muhat, vs, tau_star)), tau_star
 end
 
 #Selects tau0 to minimize SURE of MSE
@@ -342,7 +342,7 @@ function x_sure_MSE(cs, muhat, vs)
 
     @assert iter < MAX_ITER "max iterations reached"
     tau_star = fzero(f_deriv, lb, ub)
-    rs = shrink(muhat, vs, tau_star)
+    rs = shrink.(muhat, vs, tau_star)
 
     return x_dual(cs, rs)[1], tau_star
 end
@@ -404,29 +404,21 @@ end
 # end
 
 #cs are unscaled (each element order unity)
-#returns xs, lam
-function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out; 
+#this is a bad signature.  x_out is overwritten and it returns dual variable
+#Try to rationalize this and think about what is most memory efficient in code
+function x_l2reg2!(cs, muhat, vs, Gamma, x_out; 
                     lam_guess::Float64 = -1., ROOT_TOL::Float64=1e-6, TOL::Float64=1e-6)
     const n = length(cs)
     const sqrt_vmin = sqrt(minimum(vs))
     @assert length(x_out) == n "Return vector wrong size"
-    #resize!(x_out, n)
 
     #Find lambda by making knapsack tight
     function f(lam)
-
-        ##VG Trial?
-        # out = 0.
-        # for jx = 1:n
-        #     out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-        # end
-        # out / n - 1
-
         mean(cs .* g_j.(Gamma, lam, cs, muhat, vs, sqrt_vmin)) - 1
     end
 
-    #if you have a previous lambda
-    #assume Gammas are close together
+    #if you have lam_guess, assume gammas are close together
+    #use this to guess a reasonable STARTING bracket
     if lam_guess  > 0
         const lhs_prev = f(lam_guess)
         if lhs_prev > TOL
@@ -435,22 +427,17 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
         elseif lhs_prev < -TOL
             ub = lam_guess
             lb = .5*ub
-        else #You got lucky!!           
+        else #by luck, lam_guess is perfect
             #exit early
-            #VG Trial
-            # for jx = 1:n
-            #     x_out[jx] = g_j(Gamma, lam_guess, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-            # end
             x_out[:] = g_j.(Gamma, lam_guess, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-            lam_out = lam_guess
-            return nothing
+            return lam_guess
         end
     else #solving from scratch
         lb, ub = 0., 1.        
     end
 
-    #A good bracket should satisfy f(lb) > 0, f(ub) < 0
-    #bracket 
+    #Now refine/correct the bracket so it is valid
+    #A valid bracket satisfies f(lb) > 0, f(ub) < 0
     iter = 1
     const MAX_ITER = 20
     while f(ub)*f(lb) > 1
@@ -460,15 +447,14 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
     end
 
     if iter == MAX_ITER
-        #maybe its trivial?
+        #maybe everything fits in the knapsack
         if f(0.) <= 1
             for jx = 1:n
                 x_out[jx] = g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin)
             end
-            lam_out = 0.
-            return nothing
-        else
-            @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
+            return 0.
+        else #bracketing failed
+            @assert iter < MAX_ITER "Maximum bracketing iterations reached in regularized dual"
         end
     end
 
@@ -479,150 +465,148 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out, lam_out;
         println("False Position Failed")
         lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
     end 
-       
-    ##VG Grial?
-    # for jx = 1:n
-    #     x_out[jx] = g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-    # end
+    lam_out = 0.
     x_out[:] = g_j.(Gamma, lam_out, cs, muhat, vs, sqrt_vmin)
-    nothing
+    lam_out
 end
-
-
 
 #cs are unscaled (each element order unity)
 #returns xs, lam
 #uses a FW algorithm
-function x_FWreg(cs, muhat, vs, Gamma; x_prev = Float64[], MAX_ITER = 100, TOL=1e-4)
-    iter = 1
-    const n = length(muhat)
-    const sqrt_vmin = sqrt(minimum(vs))
-    function grad!(xs, g)
-        g[:] = muhat/n - Gamma * sqrt_vmin * xs ./ vs / n
-    end
-    g = zeros(n)
-    d = zeros(n)
-    xp = isempty(x_prev) ? x(cs, muhat) : x_prev  #VG update to something better
-    prev_value = -Inf
-    while iter < MAX_ITER
-        #solve the subproblem to find a direction.
-        grad!(xp, g)
-        d[:] = x(cs, g)
+# VG This seems buggy.  don't use without further testing.  
+# function x_FWreg(cs, muhat, vs, Gamma; x_prev = Float64[], MAX_ITER = 100, TOL=1e-4)
+#     iter = 1
+#     const n = length(muhat)
+#     const sqrt_vmin = sqrt(minimum(vs))
+#     function grad!(xs, g)
+#         g[:] = muhat/n - Gamma * sqrt_vmin * xs ./ vs / n
+#     end
+#     g = zeros(n)
+#     d = zeros(n)
+#     xp = isempty(x_prev) ? x(cs, muhat) : x_prev  #VG update to something better
+#     prev_value = -Inf
+#     while iter < MAX_ITER
+#         #solve the subproblem to find a direction.
+#         grad!(xp, g)
+#         d[:] = x(cs, g)
 
-        #optimize the step
-        #notice the negatives because we are maximizing. 
-        function f(step) 
-            reg_part = mean((xp[ix] + step * (d[ix]-xp[ix]))^2/vs[ix] for ix = 1:n)
-            -dot(muhat, xp + step * (d - xp))/n + .5 * Gamma * sqrt_vmin * reg_part
-        end
-        step_star = Optim.minimizer(optimize(f, 0, 1))
-
-        if abs(-f(step_star) - prev_value) <= TOL
-            break
-        else
-            prev_value = -f(step_star)
-        end
-
-        xp += step_star * (d - xp)
-        iter += 1
-    end
-    @assert iter < MAX_ITER "Maximum Iterations reached in FW"
-    println("Num Iters $iter")
-    return xp
-end
-
-#Solves the Regularization problem from a warm-start
-#If heuristic fails, reverts to solution above
-# function x_l2reg_warm(cs, muhat, vs, Gamma; 
-#                         lambda_0 = -1., Gamma_0 = Inf)
-#     const n = length(cs)
-#     #Find lambda by making knapsack tight
-#     sqrt_vmin = sqrt(minimum(vs))
-#     function f(lam)
-#         out = 0.
-#         for jx = 1:n
-#             out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+#         #optimize the step
+#         #notice the negatives because we are maximizing. 
+#         function f(step) 
+#             reg_part = mean((xp[ix] + step * (d[ix]-xp[ix]))^2/vs[ix] for ix = 1:n)
+#             -dot(muhat, xp + step * (d - xp))/n + .5 * Gamma * sqrt_vmin * reg_part
 #         end
-#         out / n
-#     end
+#         step_star = Optim.minimizer(optimize(f, 0, 1))
 
-#     #Check if we can trivially fit all items
-#     if f(0) <= 1
-#         return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
-#     end
-
-#     #Use derivative to approximate a sol if you have warmstart
-#     if lambda_0 > 0
-#         deriv = 0.
-#         for jx = 1:n
-#             deriv += cs[jx]^2 * vs[jx] / Gamma / sqrt_vmin
-#         end
-#         deriv /= n        
-#         lambda_approx = max(lambda_0 + (1. - f(lambda_0))/deriv, 0)
-#     else
-#         lambda_approx = 0
-#     end
-
-#     #Now look for a good bracket.  
-#     #Should have f(lb) > 1 >= f(ub)
-#     lb, ub = 0., 1.
-#     if (Gamma_0 < Gamma) && (lambda_0 > 0)
-#         ub = lambda_0  #since decreasing
-#         if abs(f(ub) - 1.) <= 1e-10 #Just in case you nail it
-#             return [g_j(Gamma, ub, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], ub
-#         end            
-#         if f(lambda_approx) > 1
-#             lb = lambda_approx
+#         if abs(-f(step_star) - prev_value) <= TOL
+#             break
 #         else
-#             ub = min(lambda_approx, ub)
-#         end
-#     else #either Gamma_0 is bigger or wasn't set
-#         lb = max(0, lambda_0) #since decreasing
-#         if abs(f(lb) - 1.) <= 1e-10  #Just in case you nail it
-#             return [g_j(Gamma, lb, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lb
+#             prev_value = -f(step_star)
 #         end
 
-#         if f(lambda_approx) <= 1
-#             ub = lambda_approx
-#         else
-#             lb = max(lb, lambda_approx)
-#             ub = 2lb + 1
-#             iter = 1
-#             MAX_ITER = 20
-#             while f(ub) > 1
-#                 @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
-#                 lb = ub
-#                 ub *= 2
-#                 iter += 1
-#             end
-#         end
+#         xp += step_star * (d - xp)
+#         iter += 1
 #     end
-#     if (f(ub) > 1 || f(lb) <= 1)
-#         println("[$lb, $ub]")
-#         println("Initial $(lambda_0) $Gamma_0")
-#         println("Gamma $Gamma")
-#         println("f(ub) $(f(ub)) $(f(ub) <=1)")
-#         println("f(lb) $(f(lb)) $(f(lb) > 1)")
-#         println("lambda_approx $lambda_approx")
-#     end
-
-#     @assert f(lb) > 1  "lb is incorrect in bracketing [$lb, $ub]"
-#     @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
-
-#     lamstar = fzero(lam -> f(lam) - 1, [lb, ub])
-#     return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
+#     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
+#     println("Num Iters $iter")
+#     return xp
 # end
 
 
+#VG Old, should be deprecated
+#Solves the Regularization problem from a warm-start
+#If heuristic fails, reverts to solution above
+function x_l2reg_warm(cs, muhat, vs, Gamma; 
+                        lambda_0 = -1., Gamma_0 = Inf)
+    const n = length(cs)
+    #Find lambda by making knapsack tight
+    sqrt_vmin = sqrt(minimum(vs))
+    function f(lam)
+        out = 0.
+        for jx = 1:n
+            out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
+        end
+        out / n
+    end
+
+    #Check if we can trivially fit all items
+    if f(0) <= 1
+        return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
+    end
+
+    #Use derivative to approximate a sol if you have warmstart
+    if lambda_0 > 0
+        deriv = 0.
+        for jx = 1:n
+            deriv += cs[jx]^2 * vs[jx] / Gamma / sqrt_vmin
+        end
+        deriv /= n        
+        lambda_approx = max(lambda_0 + (1. - f(lambda_0))/deriv, 0)
+    else
+        lambda_approx = 0
+    end
+
+    #Now look for a good bracket.  
+    #Should have f(lb) > 1 >= f(ub)
+    lb, ub = 0., 1.
+    if (Gamma_0 < Gamma) && (lambda_0 > 0)
+        ub = lambda_0  #since decreasing
+        if abs(f(ub) - 1.) <= 1e-10 #Just in case you nail it
+            return [g_j(Gamma, ub, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], ub
+        end            
+        if f(lambda_approx) > 1
+            lb = lambda_approx
+        else
+            ub = min(lambda_approx, ub)
+        end
+    else #either Gamma_0 is bigger or wasn't set
+        lb = max(0, lambda_0) #since decreasing
+        if abs(f(lb) - 1.) <= 1e-10  #Just in case you nail it
+            return [g_j(Gamma, lb, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lb
+        end
+
+        if f(lambda_approx) <= 1
+            ub = lambda_approx
+        else
+            lb = max(lb, lambda_approx)
+            ub = 2lb + 1
+            iter = 1
+            MAX_ITER = 20
+            while f(ub) > 1
+                @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
+                lb = ub
+                ub *= 2
+                iter += 1
+            end
+        end
+    end
+    if (f(ub) > 1 || f(lb) <= 1)
+        println("[$lb, $ub]")
+        println("Initial $(lambda_0) $Gamma_0")
+        println("Gamma $Gamma")
+        println("f(ub) $(f(ub)) $(f(ub) <=1)")
+        println("f(lb) $(f(lb)) $(f(lb) > 1)")
+        println("lambda_approx $lambda_approx")
+    end
+
+    @assert f(lb) > 1  "lb is incorrect in bracketing [$lb, $ub]"
+    @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
+
+    lamstar = fzero(lam -> f(lam) - 1, [lb, ub])
+    return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
+end
+
+
 #Selects Gamma via hold-out validation
-#Test against muhat/thetas for oracle, use muhat1/muhat2 for holdout
+#Use muhat/thetas to compute oracle value
+#Use muhat1/muhat2 for holdout validation
 #output xhat, Gamma_grid, objs
 function x_l2reg_CV(cs, muhat, vs, thetas; 
                     Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     const n = length(muhat)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
-    #an exhaustive search
+    #Exhaustive search
     best_val = -1.
     xhat = zeros(n)
     x_t  = zeros(n)
@@ -630,10 +614,10 @@ function x_l2reg_CV(cs, muhat, vs, thetas;
     objs = zeros(length(Gamma_grid))
 
     for (ix, Gamma) in enumerate(Gamma_grid)
-        if ix > 1
-            x_l2reg2!(cs, muhat, vs, Gamma, x_t, lam_t)
+        if ix > 1 #warm start
+            lam_t = x_l2reg2!(cs, muhat, vs, Gamma, x_t, lam_guess=lam_t)
         else
-            x_l2reg2!(cs, muhat, vs, Gamma, x_t, lam_t, lam_guess=lam_t)
+            lam_t = x_l2reg2!(cs, muhat, vs, Gamma, x_t)
         end
 
         objs[ix] = dot(thetas, x_t)/n
@@ -718,7 +702,7 @@ function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         objs[ix] = dot(muhat, xs)/n - dirac_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, thetas)
 
@@ -728,7 +712,7 @@ function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
         end
     end
     #solving once more is fast compared to rest of algorithm
-    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
 end
 
 #Approximate the dirac with an box kernel
@@ -756,7 +740,7 @@ function x_stein_box(cs_unsc, muhat, vs, h;
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
         objs[ix] = dot(muhat, xs)/n - approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
@@ -767,7 +751,7 @@ function x_stein_box(cs_unsc, muhat, vs, h;
         end
     end
     
-    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ##Approximating Stein by First Order (primal) difference
@@ -782,8 +766,8 @@ function primal_approx_bias(vs, tau, muhat, lam, cs, h)
         end
         ej[jx] = .5h
 
-        xs_p = x(cs, shrink(muhat + ej, vs, tau))[jx]
-        xs_m = x(cs, shrink(muhat - ej, vs, tau))[jx]
+        xs_p = x(cs, shrink.(muhat + ej, vs, tau))[jx]
+        xs_m = x(cs, shrink.(muhat - ej, vs, tau))[jx]
 
         out += (xs_p - xs_m)/h/vs[jx]
     end
@@ -798,7 +782,7 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
     tau_best = -1.
     const n =length(vs)
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
         objs[ix] = dot(muhat, xs)/n - primal_approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
@@ -809,7 +793,7 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
         end
     end
     
-    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ##Regularization bias via stein's lemma
@@ -826,8 +810,6 @@ function reg_bias(cs, vs, muhats, lam, Gamma)
 end
 
 
-#A smarter way to do this would leverage smoothness in gamma to update solutions
-#rather than resolve
 function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
@@ -842,9 +824,9 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
     for ix = 1:length(Gamma_grid)
         #use warm-start information
         if ix > 1
-            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs, lam, lam_guess=lam)
+            lam = x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs, lam_guess=lam)
         else
-            x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs, lam)
+            lam = x_l2reg2!(cs_unsc, muhat, vs, Gamma_grid[ix], xs)
         end
         objs[ix] = dot(muhat, xs)/n - reg_bias(cs_unsc, vs, muhat, lam, Gamma_grid[ix])
 
@@ -854,7 +836,7 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
         end
     end    
     Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small ", Gamma_min, " ", Gamma_max)
-    x_l2reg2!(cs_unsc, muhat, vs, Gamma_best, xs, lam)
+    lam = x_l2reg2!(cs_unsc, muhat, vs, Gamma_best, xs)
     return xs, Gamma_grid, objs
 end
 
@@ -868,13 +850,12 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs;
                         Gamma_step=Gamma_step, Gamma_min=Gamma_min, 
                         Gamma_max=Gamma_max)
 
-    #Depends on fact that Gamma_grid is identical.
+    #Exploits fact that Gamma_grid is identical.
     objs = .5 .* (objs1 .+ objs2)
     Gamma_best = Gamma_grid[indmax(objs)]
     Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small ", Gamma_min, " ", Gamma_max)
 
-    lam = 0.
-    x_l2reg2!(cs_unsc, .5 .* (muhat1 .+ muhat2), vs, Gamma_best, xs1, lam)
+    lam = x_l2reg2!(cs_unsc, .5 .* (muhat1 .+ muhat2), vs, Gamma_best, xs1)
     return xs1, Gamma_grid, objs
 end
 
