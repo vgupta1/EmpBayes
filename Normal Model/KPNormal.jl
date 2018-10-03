@@ -40,19 +40,19 @@ end
 ### Some generic helpers 
 function shrink(muhat, vs, tau) 
     vmin = minimum(vs)
-    return (vmin + tau)/vmin * (vs ./ (vs + tau)) .* muhat
+    return @. (vmin + tau)/vmin * (vs / (vs + tau)) * muhat
 end
 
 x(cs_unsc, rs) = x_dual(cs_unsc, rs)[1]
 
 function lam(muhat, tau, vs, cs_unsc)
-    rs = shrink.(muhat, vs, tau)
+    rs = shrink(muhat, vs, tau)
     x_dual(cs_unsc, rs)[2]
 end
 
 function dual_obj(muhat, tau, vs, cs_unsc)
     l = lam(muhat, tau, vs, cs_unsc)
-    l + mean(max(0, shrink.(muhat, vs, tau) .- l * cs_unsc))    
+    l + mean(max(0, shrink(muhat, vs, tau) .- l * cs_unsc))    
 end
 
 
@@ -200,9 +200,9 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
     ##assume that solving one last time is short relative to costs
     indmax = findfirst(vals .>= max_tau0)
     if indmax == length(vals)
-        max_xs = x(cs_unsc, shrink.(muhat, vs, 1.1*max_tau0))
+        max_xs = x(cs_unsc, shrink(muhat, vs, 1.1*max_tau0))
     else
-        max_xs = x(cs_unsc, shrink.(muhat, vs, .5*max_tau0 + .5*vals[indmax + 1]))
+        max_xs = x(cs_unsc, shrink(muhat, vs, .5*max_tau0 + .5*vals[indmax + 1]))
     end
 
     return max_xs, vals, objs 
@@ -221,7 +221,7 @@ function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         objs[ix] = dot(thetas, xs)/n
 
@@ -231,7 +231,7 @@ function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
         end
     end
     #solving once more is fast compared to rest of algorithm
-    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ### Empirical Bayes Type Estimators
@@ -239,7 +239,7 @@ end
 function x_MM(cs, muhat, vs)
 	tau_mm = 1/mean(@. muhat^2 - 1/vs )
 	tau_mm = max.(0, tau_mm)
-	tau_mm, x(cs, shrink.(muhat, vs, tau_mm))
+	tau_mm, x(cs, shrink(muhat, vs, tau_mm))
 end
 
 ##EB MLE 
@@ -259,7 +259,7 @@ function x_MLE(cs, muhat, vs, max_bnd = 1e2)
         if v0 >= max_bnd
             return -1, x(cs, muhat)
         end
-    return 1/v0, x(cs, shrink.(muhat, vs, 1/v0))
+    return 1/v0, x(cs, shrink(muhat, vs, 1/v0))
     end
 end
 
@@ -271,7 +271,7 @@ end
 #Run on muhat1, muhat2 to get hold-out
 function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)   
     function deriv_f(tau0)
-        rs = shrink.(muhat1, vs, tau0)
+        rs = shrink(muhat1, vs, tau0)
         mean((muhat2 - rs) .* rs./(vs + tau0))
     end
     #bracketting tau0
@@ -291,7 +291,7 @@ function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
     muhat = .5 * (muhat1 + muhat2)
-    return x(cs, shrink.(muhat1, vs, tau_star)), tau_star
+    return x(cs, shrink(muhat1, vs, tau_star)), tau_star
 end
 
 ##Selects tau0 to minimize oracle MSE
@@ -320,7 +320,7 @@ function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 10)
     if iter != max_iter
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
-    return x(cs, shrink.(muhat, vs, tau_star)), tau_star
+    return x(cs, shrink(muhat, vs, tau_star)), tau_star
 end
 
 #Selects tau0 to minimize SURE of MSE
@@ -342,7 +342,7 @@ function x_sure_MSE(cs, muhat, vs)
 
     @assert iter < MAX_ITER "max iterations reached"
     tau_star = fzero(f_deriv, lb, ub)
-    rs = shrink.(muhat, vs, tau_star)
+    rs = shrink(muhat, vs, tau_star)
 
     return x_dual(cs, rs)[1], tau_star
 end
@@ -440,7 +440,7 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
     #A valid bracket satisfies f(lb) > 0, f(ub) < 0
     iter = 1
     const MAX_ITER = 20
-    while f(ub)*f(lb) > 1
+    while f(ub)*f(lb) > 0.
         f(lb) <= 0 && (lb /= 2.)
         f(ub) >= 0 && (ub *= 2.)
         iter += 1
@@ -448,7 +448,7 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
 
     if iter == MAX_ITER
         #maybe everything fits in the knapsack
-        if f(0.) <= 1
+        if f(0.) <= 0
             for jx = 1:n
                 x_out[jx] = g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin)
             end
@@ -459,13 +459,13 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
     end
 
     #refine solution. Default to bisection if goes badly.
+    lam_out = 0.
     try
         lam_out = find_zero(lam -> f(lam), [lb, ub], FalsePosition(), ftol=ROOT_TOL)
     catch
         println("False Position Failed")
         lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
     end 
-    lam_out = 0.
     x_out[:] = g_j.(Gamma, lam_out, cs, muhat, vs, sqrt_vmin)
     lam_out
 end
@@ -702,7 +702,7 @@ function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         objs[ix] = dot(muhat, xs)/n - dirac_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, thetas)
 
@@ -712,7 +712,7 @@ function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
         end
     end
     #solving once more is fast compared to rest of algorithm
-    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
 #Approximate the dirac with an box kernel
@@ -740,7 +740,7 @@ function x_stein_box(cs_unsc, muhat, vs, h;
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
         objs[ix] = dot(muhat, xs)/n - approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
@@ -751,7 +751,7 @@ function x_stein_box(cs_unsc, muhat, vs, h;
         end
     end
     
-    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ##Approximating Stein by First Order (primal) difference
@@ -766,8 +766,8 @@ function primal_approx_bias(vs, tau, muhat, lam, cs, h)
         end
         ej[jx] = .5h
 
-        xs_p = x(cs, shrink.(muhat + ej, vs, tau))[jx]
-        xs_m = x(cs, shrink.(muhat - ej, vs, tau))[jx]
+        xs_p = x(cs, shrink(muhat + ej, vs, tau))[jx]
+        xs_m = x(cs, shrink(muhat - ej, vs, tau))[jx]
 
         out += (xs_p - xs_m)/h/vs[jx]
     end
@@ -782,7 +782,7 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
     tau_best = -1.
     const n =length(vs)
     for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink.(muhat, vs, tau_grid[ix]))
+        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
         objs[ix] = dot(muhat, xs)/n - primal_approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
@@ -793,7 +793,7 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
         end
     end
     
-    return x(cs_unsc, shrink.(muhat, vs, tau_best)), tau_grid, objs
+    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
 end
 
 ##Regularization bias via stein's lemma
