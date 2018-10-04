@@ -317,7 +317,7 @@ end
 
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
-						includeReg = true, Gamma_min = 1., Gamma_max = 20)
+						includeReg = true, Gamma_min = 1., Gamma_max = 20, Gamma_step=.01)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
@@ -335,7 +335,7 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid; includeReg=includeReg, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+	test_harness(f, numRuns, o, n_grid; includeReg=includeReg, Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 	close(f)
 	return file_name	
 end
