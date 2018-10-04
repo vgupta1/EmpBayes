@@ -29,7 +29,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamma_max=20.)
+function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamma_max=20., Gamma_step=.01)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 	noise = zeros(Float64, n_max)
@@ -132,7 +132,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Oracle Regularization
 				tic()
 				x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
-															Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+															Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(thetas, x_t)/n
@@ -157,7 +157,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Our Stein Approach to Regularization
 				tic()
 				x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat_t, vs, 
-											Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+											Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 				t = toc()
 				Gammahat = Gamma_grid[indmax(objs)]
 				thetaval = dot(thetas, x_t)/n
@@ -169,13 +169,6 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
 				thetaval = dot(thetas, x_t)/n
 				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
-
-				#VG these need fixing to match new signatures if you want to uncomment
-				# ind_min = findfirst(Gamma_grid .>= 10.0)
-				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				# xs = KP.x_l2reg(cs, muhat_t, vs, Gammahat)[1]
-				# thetaval = dot(thetas, xs)/n
-				# writecsv(f, [iRun n "SteinReg_10" thetaval t Gammahat])
 
 				#NEW RO method with new threshold 
 				tic()
@@ -221,7 +214,7 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 				#Leave one out validation (LOO)
 				tic()
 				x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat_t + noise_t, muhat_t - noise_t, vs, 
-													Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+													Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 				t = toc()
 				thetaval = dot(thetas, x_t)/n
 				GammaLOO = Gamma_grid[indmax(objs)]
