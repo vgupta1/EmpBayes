@@ -17,7 +17,7 @@ numRuns = parse(Int, ARGS[1])
 tic()
 a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309, param_path, Gamma_min=10, Gamma_max=100., Gamma_step =.5)
 b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path, Gamma_min=10, Gamma_max=100., Gamma_step=.5)
-c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path, Gamma_min=10, Gamma_max=100., Gamam_step =.5)
+c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path, Gamma_min=10, Gamma_max=100., Gamma_step =.5)
 d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path, Gamma_min=10, Gamma_max=100., Gamma_step =.5)
 
 ######
