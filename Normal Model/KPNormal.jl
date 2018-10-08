@@ -1,10 +1,11 @@
 module KP
 using Distributions, Roots, Optim
 
+##VG Consider killing these exports
 export x, best_x_tau, x_MM, x_MLE, 
       x_dual, lam, shrink, x_l2reg, 
       x_l2reg_CV, x_sure_MSE, x_stein_exact, 
-      x_OR_MSE, x_stein_box, x_l2reg_warm
+      x_OR_MSE, x_stein_box
 
 ### The main workhorse
 #cs_unsc (unscaled) should have entries on order unity.
@@ -208,32 +209,6 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
     return max_xs, vals, objs 
 end
 
-#Naive grid search for best value of $\tau$
-#cs_unsc has entries order unity.  cs has entires order 1/n
-#returns max_xs, tau_vals, objs
-#objs[ix] is the objective at tau_vals[ix] + eps
-#For oracle, use muhat, thetas
-#For Hold_out, use muhat1, muhat2
-function best_x_tau2(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
-    const n = length(vs)
-    tau_grid = collect(0.:tau_step:tau_max)
-    objs = zeros(length(tau_grid))
-    obj_best = -Inf
-    tau_best = -1.
-    for ix = 1:length(tau_grid)
-        xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
-        #compute the value corresponding to evaluating the dirac
-        objs[ix] = dot(thetas, xs)/n
-
-        if objs[ix] > obj_best
-            tau_best = tau_grid[ix]
-            obj_best = objs[ix]
-        end
-    end
-    #solving once more is fast compared to rest of algorithm
-    return x(cs_unsc, shrink(muhat, vs, tau_best)), tau_grid, objs
-end
-
 ### Empirical Bayes Type Estimators
 ##EB Method of Moments
 function x_MM(cs, muhat, vs)
@@ -264,36 +239,6 @@ function x_MLE(cs, muhat, vs, max_bnd = 1e2)
 end
 
 ### Other Estimate then Optimize Heuristics
-
-#Selects tau0 to minimize out-of-sample MSE
-#out of sample mse estimated via hold-out validation
-#This approximates ridge regression
-#Run on muhat1, muhat2 to get hold-out
-function x_HO_MSE(cs, muhat1, muhat2, vs; max_iter = 5)   
-    function deriv_f(tau0)
-        rs = shrink(muhat1, vs, tau0)
-        mean((muhat2 - rs) .* rs./(vs + tau0))
-    end
-    #bracketting tau0
-    max_bnd = 1
-    sgn = sign(deriv_f(0))
-    iter = 0
-    for iter = 1:max_iter
-        if sgn * deriv_f(max_bnd) < 0
-            break
-        else
-            max_bnd *= 2
-        end
-    end
-    #if iteration limit reached, just return zero
-    tau_star = 0.
-    if iter != max_iter
-        tau_star = fzero(deriv_f, 0, max_bnd)
-    end
-    muhat = .5 * (muhat1 + muhat2)
-    return x(cs, shrink(muhat1, vs, tau_star)), tau_star
-end
-
 ##Selects tau0 to minimize oracle MSE
 #We can use the old shrinkage to compute tau.
 function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 10)   
@@ -348,14 +293,6 @@ function x_sure_MSE(cs, muhat, vs)
 end
 
 ### Regularization based Methods
-#helper function.  not to be exposed
-#cs are unscaled (each element order unity)
-# function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
-#     const t = muhat_j - lam * cj
-#     out = max(t, 0) - max(t - Gamma * sqrt_vmin/vj, 0)
-#     return out * vj/Gamma/sqrt_vmin 
-# end
-
 function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
     const t = muhat_j - lam * cj
     if t < 0
@@ -366,42 +303,6 @@ function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
         return 1.
     end
 end
-
-
-
-#cs are unscaled (each element order unity)
-#returns xs, lam
-# function x_l2reg(cs, muhat, vs, Gamma)
-#     const n = length(cs)
-
-#     #Find lambda by making knapsack tight
-#     sqrt_vmin = sqrt(minimum(vs))
-#     function f(lam)
-#         out = 0.
-#         for jx = 1:n
-#             out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-#         end
-#         out / n
-#     end
-
-#     #Check if we can trivially fit all items
-#     if f(0.) <= 1
-#         return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
-#     else
-#         #bracketting
-#         lb, ub = 0., 1.
-#         iter = 1
-#         const MAX_ITER = 20
-#         while f(ub) > 1
-#             @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
-#             lb = ub
-#             ub *= 2.
-#             iter += 1
-#         end
-#         lamstar = fzero(lam -> f(lam) - 1., [lb, ub])
-#         return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
-#     end
-# end
 
 #cs are unscaled (each element order unity)
 #this is a bad signature.  x_out is overwritten and it returns dual variable
@@ -470,133 +371,6 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
     lam_out
 end
 
-#cs are unscaled (each element order unity)
-#returns xs, lam
-#uses a FW algorithm
-# VG This seems buggy.  don't use without further testing.  
-# function x_FWreg(cs, muhat, vs, Gamma; x_prev = Float64[], MAX_ITER = 100, TOL=1e-4)
-#     iter = 1
-#     const n = length(muhat)
-#     const sqrt_vmin = sqrt(minimum(vs))
-#     function grad!(xs, g)
-#         g[:] = muhat/n - Gamma * sqrt_vmin * xs ./ vs / n
-#     end
-#     g = zeros(n)
-#     d = zeros(n)
-#     xp = isempty(x_prev) ? x(cs, muhat) : x_prev  #VG update to something better
-#     prev_value = -Inf
-#     while iter < MAX_ITER
-#         #solve the subproblem to find a direction.
-#         grad!(xp, g)
-#         d[:] = x(cs, g)
-
-#         #optimize the step
-#         #notice the negatives because we are maximizing. 
-#         function f(step) 
-#             reg_part = mean((xp[ix] + step * (d[ix]-xp[ix]))^2/vs[ix] for ix = 1:n)
-#             -dot(muhat, xp + step * (d - xp))/n + .5 * Gamma * sqrt_vmin * reg_part
-#         end
-#         step_star = Optim.minimizer(optimize(f, 0, 1))
-
-#         if abs(-f(step_star) - prev_value) <= TOL
-#             break
-#         else
-#             prev_value = -f(step_star)
-#         end
-
-#         xp += step_star * (d - xp)
-#         iter += 1
-#     end
-#     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
-#     println("Num Iters $iter")
-#     return xp
-# end
-
-
-#VG Old, should be deprecated
-#Solves the Regularization problem from a warm-start
-#If heuristic fails, reverts to solution above
-function x_l2reg_warm(cs, muhat, vs, Gamma; 
-                        lambda_0 = -1., Gamma_0 = Inf)
-    const n = length(cs)
-    #Find lambda by making knapsack tight
-    sqrt_vmin = sqrt(minimum(vs))
-    function f(lam)
-        out = 0.
-        for jx = 1:n
-            out += cs[jx] * g_j(Gamma, lam, cs[jx], muhat[jx], vs[jx], sqrt_vmin)
-        end
-        out / n
-    end
-
-    #Check if we can trivially fit all items
-    if f(0) <= 1
-        return [g_j(Gamma, 0., cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx = 1:n], 0.
-    end
-
-    #Use derivative to approximate a sol if you have warmstart
-    if lambda_0 > 0
-        deriv = 0.
-        for jx = 1:n
-            deriv += cs[jx]^2 * vs[jx] / Gamma / sqrt_vmin
-        end
-        deriv /= n        
-        lambda_approx = max(lambda_0 + (1. - f(lambda_0))/deriv, 0)
-    else
-        lambda_approx = 0
-    end
-
-    #Now look for a good bracket.  
-    #Should have f(lb) > 1 >= f(ub)
-    lb, ub = 0., 1.
-    if (Gamma_0 < Gamma) && (lambda_0 > 0)
-        ub = lambda_0  #since decreasing
-        if abs(f(ub) - 1.) <= 1e-10 #Just in case you nail it
-            return [g_j(Gamma, ub, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], ub
-        end            
-        if f(lambda_approx) > 1
-            lb = lambda_approx
-        else
-            ub = min(lambda_approx, ub)
-        end
-    else #either Gamma_0 is bigger or wasn't set
-        lb = max(0, lambda_0) #since decreasing
-        if abs(f(lb) - 1.) <= 1e-10  #Just in case you nail it
-            return [g_j(Gamma, lb, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lb
-        end
-
-        if f(lambda_approx) <= 1
-            ub = lambda_approx
-        else
-            lb = max(lb, lambda_approx)
-            ub = 2lb + 1
-            iter = 1
-            MAX_ITER = 20
-            while f(ub) > 1
-                @assert iter < MAX_ITER "Maximum iterations reached in regularized dual"
-                lb = ub
-                ub *= 2
-                iter += 1
-            end
-        end
-    end
-    if (f(ub) > 1 || f(lb) <= 1)
-        println("[$lb, $ub]")
-        println("Initial $(lambda_0) $Gamma_0")
-        println("Gamma $Gamma")
-        println("f(ub) $(f(ub)) $(f(ub) <=1)")
-        println("f(lb) $(f(lb)) $(f(lb) > 1)")
-        println("lambda_approx $lambda_approx")
-    end
-
-    @assert f(lb) > 1  "lb is incorrect in bracketing [$lb, $ub]"
-    @assert f(ub) <= 1  "ub is incorrect in bracketing [$lb, $ub]"
-
-    lamstar = fzero(lam -> f(lam) - 1, [lb, ub])
-    return [g_j(Gamma, lamstar, cs[jx], muhat[jx], vs[jx], sqrt_vmin) for jx =1:n], lamstar
-end
-
-
 #Selects Gamma via hold-out validation
 #Use muhat/thetas to compute oracle value
 #Use muhat1/muhat2 for holdout validation
@@ -628,49 +402,6 @@ function x_l2reg_CV(cs, muhat, vs, thetas;
     end     
     return xhat, Gamma_grid, objs
 end
-
-
-# ## Uses warm-start information to solve and clever bounds on Gamma OR
-# function x_l2reg_CV_warm(cs, muhat, vs, thetas; 
-#                     Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
-#     const n = length(muhat)
-#     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
-
-#     #an exhaustive search
-#     #updated as we find better values
-#     best_val, Gamma_hat, lam = -1., -1, -1
-#     #preallocated for speed
-#     xhat = zeros(n)
-#     x_t = zeros(n)
-#     objs = zeros(Gamma_grid)
-
-#     #used in trying to end early    
-#     sq_norm_u_vinv = mean(thetas.^2 .* vs)
-#     thresh, len_grid = -Inf, length(Gamma_grid)
-
-#     for (ix, Gamma) in enumerate(Gamma_grid)
-#         if ix == 1
-#             x_t[:], lam = x_l2reg_warm(cs, muhat, vs, Gamma)
-#         else
-#             x_t[:], lam = x_l2reg_warm(cs, muhat, vs, Gamma, lambda_0 = lam, Gamma_0=Gamma_grid[ix - 1])
-#         end
-#        #check if we can terminate early
-#         if mean(x_t[:].^2 ./ vs) < thresh
-#             len_grid = ix
-#             break  #all future values of x will be too small
-#         end
-
-#         objs[ix] = dot(thetas, x_t)/n
-#         if objs[ix] > best_val
-#             best_val = objs[ix]
-#             best_Gamma = Gamma
-#             xhat[:] = x_t
-#             thresh = best_val^2 / sq_norm_u_vinv
-#         end
-#     end     
-#     Gamma_grid[indmax(objs)] > Gamma_max && println("Gamma_Grid too small")
-#     return xhat, Gamma_grid[1:len_grid], objs[1:len_grid]
-# end
 
 
 ### EB Optimization Approaches
@@ -859,43 +590,6 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs;
     return xs1, Gamma_grid, objs
 end
 
-#Solves the ellipsoidal robust problem with radius r
-# Algorithm seeks the equivalent "Gamma" for the regularized problem that matches the KKT conditions
-# Corrects gamma_min, gamma_max if not a bracket
-# function x_rob(cs, muhat, vs, r; gamma_min=.01, gamma_max =100.)
-#     const sqrt_vmin = sqrt(minimum(vs))
-#     function f(Gamma)
-#         xs, lam = KP.x_l2reg(cs, muhat, vs, Gamma)
-#         return Gamma * sqrt_vmin * sqrt(sum(xs.^2 ./ vs)) - r
-#     end
-
-#     #Search for a bracket
-#     #assume this function is increasing.
-#     MAX_ITER = 100
-#     iter = 1
-#     if f(gamma_min) > 0 
-#         println("Gamma min was too large")
-#         while f(gamma_min) > 0
-#             gamma_max = gamma_min
-#             gamma_min /= 2
-#             iter += 1
-#             @assert iter < MAX_ITER "Maximum iterations reached in bracketing robust"
-#         end
-#     elseif f(gamma_max) < 0
-#         println("Gamma_max was too small")
-#         while f(gamma_max) < 0
-#             gamma_min = gamma_max
-#             gamma_max *= 2
-#             iter += 1
-#             @assert iter < MAX_ITER "Maximum iterations reached in bracketing robust"
-#         end
-#     end
-
-#     @assert f(gamma_min) * f(gamma_max) < 0 "Gamma_min, Gamma_max not a bracket"
-#     Gammastar = fzero(f, gamma_min, gamma_max)
-#     return KP.x_l2reg(cs, muhat, vs, Gammastar)
-# end
-
 #Solves the robust problem using FW
 #assumes r is radius of ellipse, i.e. rob counterpart has r/n * norm(xs)_vs
 function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
@@ -933,7 +627,5 @@ function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
     return xp
 end
-
-
 
 end #ends module
