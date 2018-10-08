@@ -230,7 +230,8 @@ dat.sum %>% filter(Method %in% c("SAA")) %>%
 ############
 dat.sum %>% filter(isReg) %>% 
   ggplot(aes(n, avgTau0, color=Method, group=Method)) + 
-  geom_point() + geom_line() + 
+  geom_point() + geom_line() +
+  geom_errorbar(aes(ymin=downTau0, ymax=upTau0))+ 
   theme_bw() + scale_x_log10()
 
 
