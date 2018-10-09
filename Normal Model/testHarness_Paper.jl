@@ -29,7 +29,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamma_max=20., Gamma_step=.01)
+function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_step=.01)
 	const n_max = maximum(n_grid)
 	muhat = zeros(Float64, n_max)
 	noise = zeros(Float64, n_max)
@@ -128,111 +128,96 @@ function test_harness(f, numRuns, o, n_grid; includeReg=true, Gamma_min=1., Gamm
 			thetaval = dot(thetas, x_t)/n
 			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
 
-			if includeReg
-				#Oracle Regularization
-				tic()
-				x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
-															Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-				t = toc()
-				Gammahat = Gamma_grid[indmax(objs)]
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+			#Oracle Regularization
+			tic()
+			x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
+														Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
 
-				#From the same values, extract oracles for Other pairs
-				#For Gamma_min = 5
-				ind_min = findfirst(Gamma_grid .>= 5.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
+			#From the same values, extract oracles for Other pairs
+			#For Gamma_min = 5
+			ind_min = findfirst(Gamma_grid .>= 5.0)
+			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
 
-				#For Gamma_min = 10
-				#VG Needs fixing to match new signatures if you want to uncomment
-				# ind_min = findfirst(Gamma_grid .>= 10.0)
-				# Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				# xs = KP.x_l2reg(cs, muhat_t, vs, Gammahat)[1]
-				# thetaval = dot(thetas, xs)/n
-				# writecsv(f, [iRun n "OracleReg_10" thetaval t Gammahat])
+			#Our Stein Approach to Regularization
+			tic()
+			x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat_t, vs, 
+										Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
 
-				#Our Stein Approach to Regularization
-				tic()
-				x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat_t, vs, 
-											Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-				t = toc()
-				Gammahat = Gamma_grid[indmax(objs)]
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
+			#Again, from same values, extract values for gamma_min
+			ind_min = findfirst(Gamma_grid .>= 5.0)
+			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
 
-				#Again, from same values, extract values for gamma_min
-				ind_min = findfirst(Gamma_grid .>= 5.0)
-				Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
+			#NEW RO method with new threshold 
+			tic()
+			thresh = sqrt(2*log(1/.1))
+			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t thresh])
 
-				#NEW RO method with new threshold 
-				tic()
-				thresh = sqrt(2*log(1/.1))
-				x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-				t = toc()
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t thresh])
+			tic()
+			thresh = sqrt(2*log(1/.05))
+			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "FWRO_Eps_.05" thetaval t thresh])
 
-				tic()
-				thresh = sqrt(2*log(1/.05))
-				x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-				t = toc()
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "FWRO_Eps_.05" thetaval t thresh])
-
-				tic()
-				thresh = sqrt(2*log(1/.01))
-				x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-				t = toc()
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "FWRO_Eps_.01" thetaval t thresh])
+			tic()
+			thresh = sqrt(2*log(1/.01))
+			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "FWRO_Eps_.01" thetaval t thresh])
 
 
-				# ####
-				# #This section was used for the intial paper submission Feb2017
-				# # The thresholds have been updated.  If want to rerun, consider using the FW implementation too.  
-				# #RO heuristic for Gamma
-				# #eps = .05				
-				# tic()
-				# xs, lam = KP.x_rob(cs, muhat_t, vs, 1.6448536269514717)
-				# t = toc()
-				# thetaval = dot(thetas, xs)/n
-				# writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
+			# ####
+			# #This section was used for the intial paper submission Feb2017
+			# # The thresholds have been updated.  If want to rerun, consider using the FW implementation too.  
+			# #RO heuristic for Gamma
+			# #eps = .05				
+			# tic()
+			# xs, lam = KP.x_rob(cs, muhat_t, vs, 1.6448536269514717)
+			# t = toc()
+			# thetaval = dot(thetas, xs)/n
+			# writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
 
-				# #eps = .01				
-				# tic()
-				# xs, lam = KP.x_rob(cs, muhat_t, vs, 2.326347874040845)
-				# t = toc()
-				# thetaval = dot(thetas, xs)/n
-				# writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
+			# #eps = .01				
+			# tic()
+			# xs, lam = KP.x_rob(cs, muhat_t, vs, 2.326347874040845)
+			# t = toc()
+			# thetaval = dot(thetas, xs)/n
+			# writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
 
-				#Leave one out validation (LOO)
-				tic()
-				x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat_t + noise_t, muhat_t - noise_t, vs, 
-													Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-				t = toc()
-				thetaval = dot(thetas, x_t)/n
-				GammaLOO = Gamma_grid[indmax(objs)]
-				writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
+			#Leave one out validation (LOO)
+			tic()
+			x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat_t + noise_t, muhat_t - noise_t, vs, 
+												Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			GammaLOO = Gamma_grid[indmax(objs)]
+			writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
 
-				#Use same values to extract for other gamma_min
-				ind_min = findfirst(Gamma_grid .>= 5.0)
-				GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
-				thetaval = dot(thetas, x_t)/n
-				writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
+			#Use same values to extract for other gamma_min
+			ind_min = findfirst(Gamma_grid .>= 5.0)
+			GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
 
-				# ind_min = findfirst(Gamma_grid .>= 10.0)
-				# GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-				# xs = KP.x_l2reg(cs, muhat_t, vs, GammaLOO)[1]
-				# thetaval = dot(thetas, xs)/n
-				# writecsv(f, [iRun n "LOO_10" thetaval t GammaLOO])
-			end
 
 		end
 		flush(f)
@@ -264,7 +249,7 @@ end
 
 ### The odd even set-up.  
 function test_OddEven(file_out, numRuns, n_grid, seed, even_v; 
-						even_theta=1., frac_fit=.1, includeReg=true)
+						even_theta=1., frac_fit=.1)
 	#build the sim object
 	srand(seed)
 	const n_max = maximum(n_grid)
@@ -279,7 +264,7 @@ function test_OddEven(file_out, numRuns, n_grid, seed, even_v;
 	#output files
 	file_name = "$(file_out)_OddEven_$(even_theta)_$(even_v)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid, includeReg=includeReg)
+	test_harness(f, numRuns, o, n_grid)
 	close(f)
 	return file_name
 end
@@ -287,7 +272,7 @@ end
 ### The three parts experimental set-up
 function test_threePart(file_out, numRuns, n_grid, seed, 
 						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h, 
-						includeReg, Gamma_min, Gamma_max)
+						Gamma_min, Gamma_max)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	cs = ones(n_max)
@@ -309,7 +294,7 @@ function test_threePart(file_out, numRuns, n_grid, seed,
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_3part_$(theta_l)_$(v_l)_$(c_l)_$(theta_m)_$(v_m)_$(c_m)_$(theta_h)_$(v_h)_$(c_h)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid; includeReg=includeReg, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+	test_harness(f, numRuns, o, n_grid; Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 	close(f)
 	return file_name
 end
@@ -317,7 +302,7 @@ end
 
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
-						includeReg = true, Gamma_min = 1., Gamma_max = 20, Gamma_step=.01)
+						Gamma_min = 1., Gamma_max = 20, Gamma_step=.01)
 	srand(seed)
 	const n_max = maximum(n_grid)
 	dat, header = readcsv(param_path, header=true)
@@ -335,7 +320,7 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
 	f = open(file_name, "w")
-	test_harness(f, numRuns, o, n_grid; includeReg=includeReg, Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+	test_harness(f, numRuns, o, n_grid; Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 	close(f)
 	return file_name	
 end

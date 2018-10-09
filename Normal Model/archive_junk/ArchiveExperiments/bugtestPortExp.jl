@@ -14,10 +14,10 @@ numRuns = parse(Int, ARGS[1])
 param_path = ARGS[2]
 
 tic()
-a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309000, param_path, includeReg=false)
-b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path, includeReg=false)
-c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path, includeReg=false)
-d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path, includeReg=false)
+a = @spawn test_ReadData(spath, numRuns, n_grid, 8675309000, param_path)
+b = @spawn test_ReadData(spath, numRuns, n_grid, 5164174290, param_path)
+c = @spawn test_ReadData(spath, numRuns, n_grid, 123456, param_path)
+d = @spawn test_ReadData(spath, numRuns, n_grid, 5167462266, param_path)
 
 ######
 file_a = fetch(a)
