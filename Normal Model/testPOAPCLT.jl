@@ -28,7 +28,6 @@ file_d = fetch(d)
 
 time_stamp = toc()
 
-
 ##read everyone in, throw away a line
 data, header = readcsv(file_a, header=true)
 
