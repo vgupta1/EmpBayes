@@ -1,7 +1,9 @@
+##VG this may be obsolete?
+
 ## New Drive for the CLT parallel
 tic()
-n_grid = [2^i for i = 8:18]
-numRuns = 50
+n_grid = [2^i for i = 8:10]
+numRuns = 5
 N = parse(Int, ARGS[1])
 
 a = @spawn test_CLTExp("", numRuns, n_grid, 8675309000, N, 2.)
