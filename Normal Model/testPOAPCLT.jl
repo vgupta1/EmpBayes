@@ -4,7 +4,7 @@
 #pass arguments for things via ARGS[1] is numRun per batch
 
 const spath = "./Results/POAPCLT_plot_"
-const param_path = "./Results/param_portExp_mtn1.csv"
+const param_path = "./Results/param_portExp_mtn2.csv"
 N_grid = collect(1:15)
 const n = 2^15
 numRuns = parse(Int, ARGS[1])

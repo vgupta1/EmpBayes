@@ -4,7 +4,7 @@
 #ARGS[1] is numRun per batch
 
 spath = "./Results/portExpBig100"
-const param_path = "./Results/param_portExp_mtn1.csv"
+const param_path = "./Results/param_portExp_mtn2.csv"
 
 n_grid = [2^i for i = 5:17]
 

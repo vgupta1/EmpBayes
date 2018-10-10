@@ -313,10 +313,6 @@ function test_ReadData(file_out, numRuns, n_grid, seed, param_path;
 	thetas = dat[1:n_max, 1]
 	vs = dat[1:n_max, 2]
 
-	#rescale cs so budget is sensible. 
-	#VG To generate the LOO Plots, you need to undo this scaling.
-	cs /= quantile(cs, .2)
-
 	o = DefaultExp(cs, thetas, vs)
 	file_name = "$(file_out)_$(seed).csv"
 	f = open(file_name, "w")
@@ -396,6 +392,6 @@ end
 ########################################################
 #########
 #Small run to precompiles stuff
-#test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_mtn1.csv")
+#test_ReadData("./temp/temp_PortExp", 5, [100, 150], 8675309, "./Results/param_portExp_mtn2.csv")
 
 

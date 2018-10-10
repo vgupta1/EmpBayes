@@ -293,7 +293,6 @@ function test_POAPCLT(file_out, param_path, numRuns, n, N_grid, seed, dist_type)
 	cs = dat[1:n, 3]
 	thetas = dat[1:n, 1]
 	vs = dat[1:n, 2]
-	cs /= quantile(cs, .2)  #rescale cs so budget is sensible. 
 
 	dist = get_dist(dist_type)
 	o = CLTExp(cs, thetas, vs, N_grid[1], dist)
@@ -309,9 +308,7 @@ end
 
 ########################################################
 #########
-N_grid = collect(1:10)
 #Small run for pre0compilation
-#test_3PartCLT("Results/temp_3PartCLT", 5, 100, [1 2], 8675309, "uniform")
-test_POAPCLT("Results/temp_POAPCLT", "Results/param_portExp_mtn1.csv", 2, 100, [2 3], 8675309, "exponential")
+#test_POAPCLT("Results/temp_POAPCLT", "Results/param_portExp_mtn2.csv", 2, 100, [2 3], 8675309, "exponential")
 
 
