@@ -1,6 +1,6 @@
 ## A small driver file to run the 3 part tests for CLT and combine
 #run like this
-#julia -p 4 -L testCLTHarness.jl tests_POAPCLT.jl
+#julia -p 4 -L testCLTHarness.jl testPOAPCLT.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
 const spath = "./Results/POAPCLT_plot_"

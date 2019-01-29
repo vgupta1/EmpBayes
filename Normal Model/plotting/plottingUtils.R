@@ -106,7 +106,11 @@ summarize_clt_dat <- function(dat){
               std  = sd(Ratio), 
               stdTau0 = sd(tau0), 
               up = quantile(Ratio, .9), 
-              down = quantile(Ratio, .1))
+              down = quantile(Ratio, .1), 
+              avgTime = mean(time), 
+              stdTime = sd(time), 
+              upTime = quantile(time, .9), 
+              downTime = quantile(time, .1))
   return(dat.sum)
 }
 

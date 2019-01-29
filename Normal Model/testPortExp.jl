@@ -10,8 +10,8 @@ n_grid = [2^i for i = 5:17]
 
 numRuns = parse(Int, ARGS[1])
 
-
-##VG The original experiments for Submission 1 were run with GammaMin, Gammamax = 1, 20.
+##VG 
+##original experimentswere run with GammaMin, Gammamax = 1, 20.
 ##  The "Big" Experiment is 5, 40 step = .01
 ## The Big100 Experiment is 10, 100 step = .5
 tic()

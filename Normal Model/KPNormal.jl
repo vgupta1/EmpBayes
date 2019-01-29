@@ -1,5 +1,5 @@
 module KP
-using Distributions, Roots, Optim
+using Distributions, Roots, Optim, MLDataUtils
 
 ##VG Consider killing these exports
 export x, best_x_tau, x_MM, x_MLE, 
@@ -153,7 +153,6 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
 
     	##Find the entering indx if it exists
     	indx_p = indmin_thresh(svals, tau0)
-    	# println("Entering Index:\t", indx_p)
     	if indx_p == -1
     		tau0 = -1
     		continue
@@ -292,7 +291,43 @@ function x_sure_MSE(cs, muhat, vs)
     return x_dual(cs, rs)[1], tau_star
 end
 
+
+## Cross-val procedure for EB class
+#dat is assumed column major size(dat) = (n, S) (S for samples)
+#vs is the precision of \xi, i.e, one column of dat
+#muhat has precision vs * S
+function x_kFoldCV(cs, vs, dat, numFolds; 
+                    tau_grid = linspace(0, 10, 100))
+    #divy the folds 
+    const S = size(dat, 2)
+    const n = size(dat, 1)
+    train, test = kfolds(S, numFolds)
+    objs_all = zeros(length(tau_grid))
+    vs_sc = zeros(length(vs))
+
+    xs_t = zeros(n)
+    for i = 1:numFolds
+        const num_train = length(train[i])
+        @. vs_sc = vs * num_train
+
+        #form muhat  and leftover
+        muhat = vec(mean(dat[:, train[i]], 2))
+        zeta  = vec(mean(dat[:,  test[i]], 2))
+
+        #eval on tau_grid pseudo-manually
+        for j = 1:length(objs_all)
+            xs_t[:] = x(cs, shrink(muhat, vs_sc, tau_grid[j]))
+            objs_all[j] += dot(zeta, xs_t) / n /numFolds
+        end
+    end
+    const tau_hat = tau_grid[indmax(objs_all)]
+    x(cs, shrink(vec(mean(dat, 2)), vs * S, tau_hat)), tau_grid, objs_all
+end
+
+
+#######
 ### Regularization based Methods
+#########
 function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
     const t = muhat_j - lam * cj
     if t < 0
@@ -311,7 +346,7 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
                     lam_guess::Float64 = -1., ROOT_TOL::Float64=1e-6, TOL::Float64=1e-6)
     const n = length(cs)
     const sqrt_vmin = sqrt(minimum(vs))
-    @assert length(x_out) == n "Return vector wrong size"
+    @assert length(x_out) == n "Return vector wrong size $(n) vs. $(length(x_out))"
 
     #Find lambda by making knapsack tight
     function f(lam)
@@ -334,17 +369,18 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
             return lam_guess
         end
     else #solving from scratch
-        lb, ub = 0., 1.        
+        lb, ub = 0.1, 1.        
     end
 
     #Now refine/correct the bracket so it is valid
     #A valid bracket satisfies f(lb) > 0, f(ub) < 0
+    tic()
     iter = 1
     const MAX_ITER = 20
-    while f(ub)*f(lb) > 0.
+    while f(ub)*f(lb) > 0. && iter < MAX_ITER
         f(lb) <= 0 && (lb /= 2.)
         f(ub) >= 0 && (ub *= 2.)
-        iter += 1
+        iter += 1       
     end
 
     if iter == MAX_ITER
@@ -367,6 +403,7 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
         println("False Position Failed")
         lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
     end 
+
     x_out[:] = g_j.(Gamma, lam_out, cs, muhat, vs, sqrt_vmin)
     lam_out
 end
@@ -400,7 +437,44 @@ function x_l2reg_CV(cs, muhat, vs, thetas;
             xhat[:] = x_t
         end
     end     
+ 
     return xhat, Gamma_grid, objs
+end
+
+
+## Cross-val procedure for Regularization Class
+#dat is column major size(dat) = (n, S)  (S for samples)
+#vs is the \xi, i.e, one column of dat
+#muhat has precision vs * S
+function x_l2reg_kFoldCV(cs, vs, dat, numFolds; 
+                    Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
+    #divy the folds 
+    const S = size(dat, 2)
+    train, test = kfolds(S, numFolds)
+    Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
+    objs_all = zeros(length(Gamma_grid))
+    vs_sc = zeros(length(vs))
+
+    for i = 1:numFolds
+        #scale by size of fold, might not be equal for all flds
+        const num_train = length(train[i])
+        @. vs_sc = vs * num_train
+
+        #form muhat  and leftover
+        muhat = mean(dat[:, train[i]], 2)
+        zeta  = mean(dat[:,  test[i]], 2)
+
+        #eval on GammaGrid using above workhorse
+        objs = x_l2reg_CV(cs, muhat, vs_sc, zeta; 
+                    Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)[3]
+        @. objs_all = objs_all + objs / numFolds
+    end
+    #avg and choose Gammahat
+    #Crucially gamma_grid same between runs and as above
+    Gammahat = Gamma_grid[indmax(objs_all)]
+    xs = zeros(size(dat, 1))
+    x_l2reg2!(cs, mean(dat, 2), vs * S, Gammahat, xs)
+    xs, Gamma_grid, objs_all
 end
 
 
@@ -627,5 +701,8 @@ function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
     @assert iter < MAX_ITER "Maximum Iterations reached in FW"
     return xp
 end
+
+
+
 
 end #ends module

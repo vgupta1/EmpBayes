@@ -209,8 +209,6 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 
 			#Leave one out validation (LOO)
 			tic()
-			# xs, Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs, 
-			# 									Gamma_min=1., Gamma_max=20)
 			xs[:], Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs, 
 												Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 
