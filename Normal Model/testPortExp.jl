@@ -7,8 +7,10 @@ spath = "./Results/portExpBig100"
 const param_path = "./Results/param_portExp_mtn2.csv"
 
 n_grid = [2^i for i = 5:17]
-
 numRuns = parse(Int, ARGS[1])
+
+spath = "./Results/tempDebug"
+n_grid = [2^i for i = 5:8]
 
 ##VG 
 ##original experimentswere run with GammaMin, Gammamax = 1, 20.

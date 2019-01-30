@@ -13,6 +13,16 @@ function sim!(o, muhat)
 	muhat[:] = randn!(muhat) ./ sqrt.(o.vs) .+ o.thetas
 end
 
+#simulates random normal stuff, but via a dataset
+#dat is assumed n, S
+function sim!(o, muhat, dat)
+	const S = size(dat, 2)
+	const n = size(dat, 1)
+	for i = 1:S
+		dat[:, i] .= randn(n) ./ sqrt(o.vs/S)  .+ o.thetas #notice scaling by S
+	end
+	muhat[:] = mean(dat, 2)
+end
 ######################
 ####
 #For increasing n, many simulations compare
@@ -31,9 +41,10 @@ end
 #		#optimal value of tau0
 function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_step=.01)
 	const n_max = maximum(n_grid)
+	const S = 10
 	muhat = zeros(Float64, n_max)
-	noise = zeros(Float64, n_max)
 	xs  = zeros(Float64, n_max)
+	dat = zeros(Float64, n_max, S)
 	lam_t = 0.
 
 	#write a header
@@ -41,8 +52,8 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
-		sim!(o, muhat)
-		noise[:] = randn!(noise) ./ sqrt.(o.vs)
+		#sim!(o, muhat)
+		sim!(o, muhat, dat)
 
 		for n in n_grid
 			#Take Views on Everything to speed up garbage collection
@@ -51,7 +62,7 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			cs  = view(o.cs, 1:n)
 			thetas = view(o.thetas, 1:n)
 			muhat_t = view(muhat, 1:n)
-			noise_t = view(noise, 1:n)
+			dat_t = view(dat, 1:n, 1:S)
 
 			#Compute performance of each method
 
@@ -128,6 +139,29 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			thetaval = dot(thetas, x_t)/n
 			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
 
+			#Hold-Out validation
+			tic()
+			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 2; tau_grid=collect(0.:.05:5))
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "HO_EB" thetaval t tau_grid[indmax(objs)]])
+
+			#5-Fold validation
+			tic()
+			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 5; tau_grid=collect(0.:.05:5))
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "K5_EB" thetaval t tau_grid[indmax(objs)]])
+
+			#LOO validation
+			tic()
+			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, S; tau_grid=collect(0.:.05:5))
+			t = toc()
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "LOO_EB" thetaval t tau_grid[indmax(objs)]])
+
+
+			###Regularization Methods
 			#Oracle Regularization
 			tic()
 			x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
@@ -202,23 +236,49 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			# thetaval = dot(thetas, xs)/n
 			# writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
 
+			#VG Replaced with proper KFold
 			#Leave one out validation (LOO)
+			# tic()
+			# x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat_t + noise_t, muhat_t - noise_t, vs, 
+			# 									Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+			# t = toc()
+			# thetaval = dot(thetas, x_t)/n
+			# GammaLOO = Gamma_grid[indmax(objs)]
+			# writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
+
+			# #Use same values to extract for other gamma_min
+			# ind_min = findfirst(Gamma_grid .>= 5.0)
+			# GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			# lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
+			# thetaval = dot(thetas, x_t)/n
+			# writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
+
+			#Hold Out Validation choice
 			tic()
-			x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat_t + noise_t, muhat_t - noise_t, vs, 
-												Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 2; 
+                    Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
 			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			GammaLOO = Gamma_grid[indmax(objs)]
-			writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
+			writecsv(f, [iRun n "HO_Reg" thetaval t Gammahat])
 
-			#Use same values to extract for other gamma_min
-			ind_min = findfirst(Gamma_grid .>= 5.0)
-			GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
-			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
+			#5-Fold Validation 
+			tic()
+			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 5; 
+                    Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
+			writecsv(f, [iRun n "K5_Reg" thetaval t Gammahat])
 
-
+			#LOO Validation 
+			tic()
+			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, S; 
+                    Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+			t = toc()
+			Gammahat = Gamma_grid[indmax(objs)]
+			thetaval = dot(thetas, x_t)/n
+			writecsv(f, [iRun n "LOO_Reg" thetaval t Gammahat])
 		end
 		flush(f)
 	end
