@@ -2,7 +2,7 @@
 source("plottingUtils.R")
 
 ###For bug fix
-#dat = read_csv("../temp/temp_PortExp_8675309.csv")
+dat = read_csv("../Results/tempDebug__8675309.csv_full_20.csv")
 
 #dat = read_csv("../Results/portExp__8675309.csv_full_100.csv")
 #dat = read_csv("../Results/portExp__8675309000.csv_full_100.csv")
@@ -39,8 +39,8 @@ g <- make_pretty(g) +
   scale_x_log10(labels=scales::comma) 
 
 g
-ggsave("../../../../OR Submission_1/Figures/portPerfBayes.pdf", 
-       g, width=3.25, height=3.25, units="in")
+# ggsave("../../../../OR Submission_1/Figures/portPerfBayes.pdf", 
+#        g, width=3.25, height=3.25, units="in")
 
 
 ## The absolute performance version
@@ -63,8 +63,8 @@ g <- make_pretty(g) +
 
 g <- g + scale_y_continuous() + 
   ylab("Scaled Performance")
-ggsave("../../../../OR Submission_1/Figures/portPerfBayes_Abs.pdf", 
-       g, width=3.25, height=3.25, units="in")
+# ggsave("../../../../OR Submission_1/Figures/portPerfBayes_Abs.pdf", 
+#        g, width=3.25, height=3.25, units="in")
 
 ##############
 
@@ -87,13 +87,14 @@ g <- make_pretty(g) +
   ylab("(%) of Full-Info") 
 
 g
-ggsave("../../../../OR Submission_1/Figures/portPerfBayesBig.pdf", 
-       g, width=6.5, height=3.25, units="in")
+# ggsave("../../../../OR Submission_1/Figures/portPerfBayesBig.pdf", 
+#        g, width=6.5, height=3.25, units="in")
 
 #################
 #Regularization versions
 ########
-g <- filter(dat.sum, isReg, Method != "RO_Eps_.05") %>%
+g <- filter(dat.sum, isReg, 
+            !Method %in% c("FWRO_Eps_.05", "FWRO_Eps_.01", "SAA")) %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -197,9 +198,10 @@ ggsave("../../../../OR Submission_1/Figures/portVarReg.pdf",
 
 
 ### Investigate the computational time dimension
-dat.sum %>% filter(Method %in% c("FullInfo", "BoxStein", "SURE_MSE", "SAA")
-                   )%>%
-  arrange(desc(n), Method) %>% select(n, Method, avgTime, upTime)
+dat.sum %>% 
+  arrange(desc(n), desc(avgTime), Method) %>% 
+  select(n, Method, avgTime, upTime) %>%
+  View(.)
   
 
 #Present average time relative to SAA
@@ -235,4 +237,10 @@ dat.sum %>% filter(isReg) %>%
   theme_bw() + scale_x_log10()
 
 
+dat.sum %>% filter(!isReg) %>% 
+  ggplot(aes(n, avgTau0, color=Method, group=Method)) + 
+  geom_point() + geom_line() +
+  geom_errorbar(aes(ymin=downTau0, ymax=upTau0))+ 
+  theme_bw() + scale_x_log10() + 
+  ylim(0, 10)
 

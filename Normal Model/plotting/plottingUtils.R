@@ -11,18 +11,19 @@ pd = position_dodge(.3)
 #VG fix this up after final run. 
 clean_data <- function(dat){
   #Drop the stuff you don't want to deal with for simplicty
-  dat <- dat %>% filter(!Method %in% c("DiracStein", "LOO_5", "LOO_10",
-                                       "OR_MSE", "OracleReg_5", "OracleReg_10",
-                                       "FWRO_Eps_.1", "SteinReg_5", "SteinReg_10")
+  dat <- dat %>% filter(!Method %in% c("DiracStein",
+                                       "OR_MSE", "OracleReg_5", 
+                                       "FWRO_Eps_.1", "SteinReg_5")
                         ) %>%
                   mutate(Method = factor(Method), 
                          Method = fct_relevel(Method, 
                                               "FullInfo", "OR", 
-                                              "BoxStein", "EB_MLE", "SURE_MSE", 
+                                              "BoxStein", "EB_MLE", "SURE_MSE", "K5_EB",
                                               "OracleReg", 
-                                              "SteinReg", "LOO", "FWRO_Eps_.01", 
+                                              "SteinReg", "FWRO_Eps_.01", "K5_Reg",  
                                               "SAA", 
-                                              "EB_MM", "FWRO_Eps_.05")
+                                              "EB_MM", "HO_EB", "LOO_EB", 
+                                              "FWRO_Eps_.05", "HO_Reg", "LOO_Reg")
                            )
 
   ## Now add the clean labels
@@ -33,14 +34,20 @@ clean_data <- function(dat){
                               `EB MLE` = "EB_MLE", 
                               `EB MM` = "EB_MM", 
                               `EB SURE` = "SURE_MSE", 
+                              `EB LOO` = "LOO_EB", 
+                              `EB K5` = "K5_Reg", 
+                              `EB HO` = "HO_EB", 
                               `Reg OR` = "OracleReg", 
                               `Reg OPT` = "SteinReg",
                               `RO 1%` = "FWRO_Eps_.01", 
-                              `RO 5%` = "FWRO_Eps_.05")
+                              `RO 5%` = "FWRO_Eps_.05", 
+                              `Reg LOO` = "LOO_Reg", 
+                              `Reg HO` = "HO_Reg", 
+                              `Reg K5`= "K5_Reg")
                  )
   #add a filter for bayes vs reg
-  dat <- mutate(dat, isBayes = Method %in% c("OR", "BoxStein", "EB_MLE", "EB_MM", "SURE_MSE", "SAA"), 
-                     isReg = Method %in% c("OracleReg", "SteinReg", "LOO", "FWRO_Eps_.01", "FWRO_Eps_.05", "SAA")
+  dat <- mutate(dat, isBayes = Method %in% c("OR", "BoxStein", "EB_MLE", "EB_MM", "SURE_MSE", "SAA", "HO_EB", "LOO_EB", "K5_EB"), 
+                     isReg = Method %in% c("OracleReg", "SteinReg", "FWRO_Eps_.01", "FWRO_Eps_.05", "SAA", "HO_Reg", "LOO_Reg", "K5_Reg")
                 )
     return(dat)  
 }
