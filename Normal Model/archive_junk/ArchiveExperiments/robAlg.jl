@@ -1,4 +1,4 @@
-using Distributions, JuMP, Ipopt
+using Distributions, JuMP, Ipopt, Random
 include("KPNormal.jl")
 using KP
 
@@ -25,7 +25,7 @@ end
 v_norm(xs, vs) = sqrt(sum(xs.^2 ./ vs))
 
 n =  1000
-srand(8675309)
+Random.seed!(8675309)
 thetas = ones(n)
 vs = ones(n)
 cs = ones(n)

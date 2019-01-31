@@ -1,6 +1,6 @@
 ##Tests for the Small-Data KP
 include("KPNormal.jl")
-using Distributions, KP
+using Distributions, Random, KP
 
 #Default simulation of normal random variates
 function simData!(o, xs, ys, zs)
@@ -24,7 +24,7 @@ end
 
 #cs and vs fixed across all runs
 function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=.1)
-	srand(seed)
+	Random.seed!(seed)
 	cs = 1./frac_fit * ones(n_max)
 
 	thetas = ones(n_max)
@@ -37,7 +37,7 @@ function OddEvenExp(seed::Integer, n_max::Integer, odd_theta, odd_tau, frac_fit=
 end
 
 function threePartExp(seed::Integer, n_max::Integer, theta_l, v_l, theta_h, v_h, frac_fit = .1)
-	srand(seed)
+	Random.seed!(seed)
 	cs = 1./frac_fit * ones(n_max)
 	thetas = ones(n_max)
 	vs = ones(n_max)
@@ -65,7 +65,7 @@ end
 #width calculated accordingly
 #Obsservations are uniform, centered on theta with width
 function CLTExp(seed::Integer, width_max, n_max, N; frac_fit = .1)
-	srand(seed)
+	Random.seed!(seed)
 	@assert rem(N, 2) == 0
 	cs = 1./frac_fit * ones(n_max)
 	thetas = ones(n_max)
@@ -111,7 +111,7 @@ end
 
 #even numbers have higher mean, lower std. dev
 function UniformLikelihoodExp(seed::Integer, theta_even, theta_odd, width_even, width_odd, n_max, lamp)
-	srand(seed)
+	Random.seed!(seed)
 	@assert rem(n_max, 2) == 0
 
 	#compute the value of c and populate
@@ -157,7 +157,7 @@ type NormalBayesExp
 end
 
 function NormalBayesExp(seed::Integer, tau0, n_max; mu0 = 0., frac_fit=.1, avg_tau=tau0)
-	srand(seed)
+	Random.seed!(seed)
 	cs = rand(n_max) * 2./frac_fit   
 	vs = 2. * avg_tau * rand(n_max)
 	NormalBayesExp(cs, vs, zeros(n_max), zeros(n_max), tau0, mu0)
@@ -186,7 +186,7 @@ end
 #thetas follow an exponential distribution
 #Costs are uniform
 function GammaExp(seed::Integer, alpha, beta, n_max, frac_fit = .1, avg_tau=2)
-	srand(seed)
+	Random.seed!(seed)
 	cs = rand(n_max) * 2./frac_fit   
 	vs = 2. * avg_tau * rand(n_max)
 	GammaExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), alpha, beta)
@@ -210,7 +210,7 @@ type UniformExp
 end
 
 function UniformExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_vs=2)
-	srand(seed)
+	Random.seed!(seed)
 	cs = rand(n_max) * 2./frac_fit   
 	vs = 2. * avg_vs * rand(n_max)
 	UniformExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), a, b)
@@ -235,7 +235,7 @@ type BetaExp
 end
 
 function BetaExp(seed::Integer, a, b, n_max, frac_fit = .1, avg_tau=2)
-	srand(seed)
+	Random.seed!(seed)
 	cs = rand(n_max) * 2./frac_fit   
 	vs = 2. * avg_tau * rand(n_max)
 	BetaExp(cs, zeros(Float64, n_max), vs, zeros(Float64, n_max), a, b)
@@ -269,7 +269,7 @@ function test_harness(f, numRuns, o, n_grid)
 	zs = zeros(Float64, n_max)
 
 	#write a header
-	writecsv(f, ["Run" "n" "Method" "thetaVal" "time" "tau0"])
+	writedlm(f,  ["Run" "n" "Method" "thetaVal" "time" "tau0"], ',')
 
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
@@ -284,14 +284,14 @@ function test_harness(f, numRuns, o, n_grid)
 			qs = x(o.cs[1:n], zs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "SAA" thetaval t 0.])
+			writedlm(f,  [iRun n "SAA" thetaval t 0.], ',')
 
 			#fullInfo val
 			tic()
 			qs = x(o.cs[1:n], o.thetas[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
+			writedlm(f,  [iRun n "FullInfo" thetaval t 0.], ',')
 
 			#The "Bayes" value.. only possible bc we if we we are in bayesian
 			if :tau0 in fieldnames(o)
@@ -299,7 +299,7 @@ function test_harness(f, numRuns, o, n_grid)
 				qs = x(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], o.tau0))
 				t = toc()
 				thetaval = dot(o.thetas[1:n], qs)/n
-				writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
+				writedlm(f,  [iRun n "Bayes" thetaval t o.tau0], ',')
 			end
 
 			#Tau MLE
@@ -307,31 +307,31 @@ function test_harness(f, numRuns, o, n_grid)
 			tauMLE, qs = x_MLE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "MLE" thetaval t tauMLE])
+			writedlm(f,  [iRun n "MLE" thetaval t tauMLE], ',')
 
 			#Tau MM
 			tic()
 			tauMM, qs = x_MM(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "MM" thetaval t tauMM])
+			writedlm(f,  [iRun n "MM" thetaval t tauMM], ',')
 
 			#The half-sample heuristic
 			tic()
 			qs, vals, objs = best_x_tau(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])
 			t = toc()
 			
-			tau_RS = vals[indmax(objs)]/2
+			tau_RS = vals[argmax(objs)]/2
 			qs = x(o.cs[1:n], shrink(zs[1:n], o.vs[1:n], tau_RS))
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Rescaled" thetaval t tau_RS])
+			writedlm(f,  [iRun n "Rescaled" thetaval t tau_RS], ',')
 
 			#The idealized stein approach
 			tic()
 			qs, vals, objs = KP.x_stein_exact(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "ExactStein" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "ExactStein" thetaval t vals[argmax(objs)]], ',')
 
 			#The stein approach with various kernels
 			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling, altKernel
@@ -339,8 +339,8 @@ function test_harness(f, numRuns, o, n_grid)
 			tic()
 			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.box, tau_step = .05)
 			t = toc()
-			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Box" thetaval t vals[indmax(objs)]])
+			thetaval = dot(o.thetas[1:n], qs)/n_max
+			writedlm(f,  [iRun n "Box" thetaval t vals[argmax(objs)]], ',')
 
 			#gauss with MISE rate n^-1/5 with scaling, altKernel
 			h = n^-.2
@@ -348,7 +348,7 @@ function test_harness(f, numRuns, o, n_grid)
 			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Gauss" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "Gauss" thetaval t vals[argmax(objs)]], ',')
 
 			#gauss with optimized rate n^-1/6 with scaling, altKernel
 			h = n^-.16666
@@ -356,7 +356,7 @@ function test_harness(f, numRuns, o, n_grid)
 			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, KP.gauss, tau_step=.05)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "GaussO" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "GaussO" thetaval t vals[argmax(objs)]], ',')
 
 			#sinc with 1/log(n) with scaling, altKernel
 			h = 1/log(n + 1)
@@ -364,7 +364,7 @@ function test_harness(f, numRuns, o, n_grid)
 			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "Sinc" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "Sinc" thetaval t vals[argmax(objs)]], ',')
 
 			#sinc with 1/log(n) with scaling, altKernel
 			h = n^-.166666
@@ -372,35 +372,35 @@ function test_harness(f, numRuns, o, n_grid)
 			qs, vals, objs = KP.x_stein_box(o.cs[1:n], zs[1:n], o.vs[1:n], h, sinc, tau_step = .1)
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "SincO" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "SincO" thetaval t vals[argmax(objs)]], ',')
 
 			#Shrinkage via Cross-Val ("Ridge")
 			tic()
 			qs, tau_CV = x_HO_MSE(o.cs[1:n], xs[1:n], ys[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "CV_Shrink" thetaval t tau_CV])
+			writedlm(f,  [iRun n "CV_Shrink" thetaval t tau_CV], ',')
 
 			#weighted l2 regularization.  uses the oracle value for now
 			tic()
 			qs, mu = x_l2reg_CV(o.cs[1:n], zs[1:n], o.vs[1:n], o.thetas[1:n])[1:2]		
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "OracleReg" thetaval t mu])
+			writedlm(f,  [iRun n "OracleReg" thetaval t mu], ',')
 
 			#weighted l2 regularization.  uses Cross-val to find value and then resolves
 			tic()
 			qs, mu = x_l2reg_CV(o.cs[1:n], xs[1:n], o.vs[1:n], ys[1:n])[1:2]		
 			t = toc()
 			thetaval = dot(o.thetas[1:n], x_l2reg(o.cs[1:n], zs[1:n], o.vs[1:n], mu)[1])/n
-			writecsv(f, [iRun n "RegCV" thetaval t mu])
+			writedlm(f,  [iRun n "RegCV" thetaval t mu], ',')
 
 			#Plug-in SURE estimation for L2
 			tic()
 			qs, tau = x_sure_MSE(o.cs[1:n], zs[1:n], o.vs[1:n])
 			t = toc()
 			thetaval = dot(o.thetas[1:n], qs)/n
-			writecsv(f, [iRun n "SURE" thetaval t tau])
+			writedlm(f,  [iRun n "SURE" thetaval t tau], ',')
 
 			# #The primal stein approach
 			# #use the optimized rate, i.e. h_n = n^-1/6
@@ -410,7 +410,7 @@ function test_harness(f, numRuns, o, n_grid)
 			# t = toc()
 			# yval = dot(ys[1:n], qs)/n
 			# thetaval = dot(o.thetas[1:n], qs)/n
-			# writecsv(f, [iRun n "PrimalStein" yval thetaval t vals[indmax(objs)]])
+			# writedlm(f,  [iRun n "PrimalStein" yval thetaval t vals[argmax(objs)]], ',')
 
 			#Oracle Value
 			tic()
@@ -431,7 +431,7 @@ function test_harness(f, numRuns, o, n_grid)
 			end
 
 			@assert abs(thetaval - maximum(objs)) <= 1e-5 "Weird Mismatch? \t $thetaval \t $(maximum(objs))"
-			writecsv(f, [iRun n "OracleZ" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "OracleZ" thetaval t vals[argmax(objs)]], ',')
 
 		end
 		flush(f)
@@ -535,7 +535,7 @@ function test_bandwidth(file_out, numRuns, o)
 	zs = zeros(Float64, n)
 
 	f = open(file_out, "w")
-	writecsv(f, ["Run" "n" "Method" "bandwidth" "thetaVal" "tau0"])
+	writedlm(f,  ["Run" "n" "Method" "bandwidth" "thetaVal" "tau0"], ',')
 	bandwidths = linspace(-1, -.001, 30)
 	#regs = linspace(.05, 5, 15)
 
@@ -545,15 +545,15 @@ function test_bandwidth(file_out, numRuns, o)
 		for h in bandwidths
 			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, KP.box, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
-			writecsv(f, [iRun n "Box" h thetaval vals[indmax(objs)]])
+			writedlm(f,  [iRun n "Box" h thetaval vals[argmax(objs)]], ',')
 
 			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, KP.gauss, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
-			writecsv(f, [iRun n "Gauss" h thetaval vals[indmax(objs)]])
+			writedlm(f,  [iRun n "Gauss" h thetaval vals[argmax(objs)]], ',')
 
 			qs, vals, objs = KP.x_stein_box(o.cs, zs, o.vs, n^h, sinc, tau_step = .1)
 			thetaval = dot(o.thetas, qs)/n
-			writecsv(f, [iRun n "Sinc" h thetaval vals[indmax(objs)]])
+			writedlm(f,  [iRun n "Sinc" h thetaval vals[argmax(objs)]], ',')
 		end
 	end
 	close(f)
