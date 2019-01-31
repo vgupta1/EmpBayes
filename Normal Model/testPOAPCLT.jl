@@ -3,10 +3,10 @@
 #julia -p 4 -L testCLTHarness.jl testPOAPCLT.jl
 #pass arguments for things via ARGS[1] is numRun per batch
 
-const spath = "./Results/POAPCLT_plot_"
-const param_path = "./Results/param_portExp_mtn2.csv"
+spath = "./Results/POAPCLT_plot_"
+param_path = "./Results/param_portExp_mtn2.csv"
 N_grid = collect(1:15)
-const n = 2^15
+n = 2^15
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
 
@@ -29,17 +29,17 @@ file_d = fetch(d)
 time_stamp = toc()
 
 ##read everyone in, throw away a line
-data, header = readcsv(file_a, header=true)
+data, header = readdlm(file_a, ',', header=true)
 
-data_t = readcsv(file_b, skipstart=1)
+data_t = readdlm(file_b, ',', skipstart=1)
 data_t[:, 1] += numRuns
 data = vcat(data, data_t)
 
-data_t = readcsv(file_c, skipstart=1)
+data_t = readdlm(file_c, ',', skipstart=1)
 data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
-data_t = readcsv(file_d, skipstart=1)
+data_t = readdlm(file_d, ',', skipstart=1)
 data_t[:, 1] += 3numRuns
 data = vcat(data, data_t)
 
@@ -50,8 +50,8 @@ println("spath \t", spath)
 indx = search(file_a, spath)[end] + 1
 
 f = open("$(spath)_$(file_a[indx:end])_full_$(4numRuns).csv", "w")
-writecsv(f, header)
-writecsv(f, data)
+writedlm(f,  header, ',')
+writedlm(f,  data, ',')
 close(f)
 
 println("Num Paths: \t $(numRuns) \t Time:", time_stamp )

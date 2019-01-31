@@ -20,13 +20,13 @@ println( file_b )
 println( file_c )
 
 ##read everyone in, throw away a line
-data, header = readcsv(file_a, header=true)
+data, header = readdlm(file_a, ',', header=true)
 
-data_t = readcsv(file_b, skipstart=1)
+data_t = readdlm(file_b, ',', skipstart=1)
 data_t[:, 1] += numRuns
 data = vcat(data, data_t)
 
-data_t = readcsv(file_c, skipstart=1)
+data_t = readdlm(file_c, ',', skipstart=1)
 data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
@@ -34,8 +34,8 @@ data = vcat(data, data_t)
 #strip the name of file_a to make the numbers better
 indx = rsearch(file_a, "_")[1]
 f = open("$(file_a[1:indx])parallel_results.csv", "w")
-writecsv(f, header)
-writecsv(f, data)
+writedlm(f,  header, ',')
+writedlm(f,  data, ',')
 close(f)
 
 println("Num Paths: \t $(numRuns) \t Time:", toc() )

@@ -1,11 +1,12 @@
-include("KPNormal.jl")
-using KP, Distributions
+using Distributions, Random, DelimitedFiles
 
+include("KPNormal.jl")
+using .KP
 ########################################################
 ###
 # Robustness to Non_Normality
 ##########
-type CLTExp
+mutable struct CLTExp
 	cs
 	thetas
 	vs
@@ -20,11 +21,11 @@ function sim!(o::CLTExp, muhat)
 	#Shift and scale so that after loop, 
 	#muhat is standard noise
 	#mean of uniform is .5, and precision = 12
-	const shift = mean(o.dist)
-	const scale = 1/ std(o.dist) / sqrt(o.N)
-	const n = length(o.cs)
+	shift = mean(o.dist)
+	scale = 1/ std(o.dist) / sqrt(o.N)
+	n = length(o.cs)
 	for k = 1:o.N
-		muhat[:] += (rand(o.dist, n) - shift) * scale
+		muhat[:] += (rand(o.dist, n) .- shift) .* scale
 	end
 	muhat[:] = muhat[:] ./ sqrt.(o.vs) + o.thetas
 end
@@ -50,14 +51,14 @@ end
 ##VG a smarter solution would keep the same observations as you incease N
 function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, Gamma_step = .1)
 
-	const n = length(o.cs)
+	n = length(o.cs)
 	muhat = zeros(Float64, n)
 	noise = zeros(Float64, n)
 	xs = zeros(Float64, n)
 	lam_t = 0.
 
 	#write a header
-	writecsv(f, ["Run" "N" "Method" "thetaVal" "time" "tau0"])
+	writedlm(f,  ["Run" "N" "Method" "thetaVal" "time" "tau0"], ',')
 
 	for iRun = 1:numRuns
 		for N in N_grid
@@ -75,42 +76,42 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 			xs[:] = KP.x(o.cs, muhat)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "SAA" thetaval t 0.])
+			writedlm(f,  [iRun N "SAA" thetaval t 0.], ',')
 
 			#fullInfo val
 			tic()
 			xs[:] = x(o.cs, o.thetas)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "FullInfo" thetaval t 0.])
+			writedlm(f,  [iRun N "FullInfo" thetaval t 0.], ',')
 
 			#Tau MLE
 			tic()
 			tauMLE, xs[:] = x_MLE(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "EB_MLE" thetaval t tauMLE])
+			writedlm(f,  [iRun N "EB_MLE" thetaval t tauMLE], ',')
 
 			#Tau MM
 			tic()
 			tauMM, xs[:] = x_MM(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "EB_MM" thetaval t tauMM])
+			writedlm(f,  [iRun N "EB_MM" thetaval t tauMM], ',')
 
 			#Oracle MSE
 			tic()
 			xs[:], tau_CV = x_OR_MSE(o.cs, muhat, o.thetas, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "OR_MSE" thetaval t tau_CV])
+			writedlm(f,  [iRun N "OR_MSE" thetaval t tau_CV], ',')
 
 			#Sure MSE
 			tic()
 			xs[:], tau_CV = x_sure_MSE(o.cs, muhat, o.vs)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "SURE_MSE" thetaval t tau_CV])
+			writedlm(f,  [iRun N "SURE_MSE" thetaval t tau_CV], ',')
 
 			#Box with the optimized rate, i.e. h_n = n^-1/6
 			h = n^-.16666
@@ -118,14 +119,14 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 			xs[:], vals, objs = x_stein_box(o.cs, muhat, o.vs, h, tau_step = .05)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "BoxStein" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun N "BoxStein" thetaval t vals[argmax(objs)]], ',')
 
 			#Oracle Value
 			tic()
 			xs[:], vals, objs = best_x_tau(o.cs, muhat, o.vs, o.thetas)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "OR" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun N "OR" thetaval t vals[argmax(objs)]], ',')
 
 			#Oracle Regularization
 			tic()
@@ -136,18 +137,18 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 
 
 			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "OracleReg" thetaval t Gammahat])
+			writedlm(f,  [iRun N "OracleReg" thetaval t Gammahat], ',')
 
 			## Reuse same values to look at different Gamma_min
 			#For Gamma_min =5
 			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			#xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
 			KP.x_l2reg2!(o.cs, muhat, o.vs, Gammahat, xs)
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "OracleReg_5" thetaval t Gammahat])
+			writedlm(f,  [iRun N "OracleReg_5" thetaval t Gammahat], ',')
 
 			#Our Stein Approach to Regularization
 			tic()
@@ -156,17 +157,17 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 											Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 
 			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "SteinReg" thetaval t Gammahat])
+			writedlm(f,  [iRun N "SteinReg" thetaval t Gammahat], ',')
 
 			#Reuse values for shortened gamma
 			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			#xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
 			KP.x_l2reg2!(o.cs, muhat, o.vs, Gammahat, xs)
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "SteinReg_5" thetaval t Gammahat])
+			writedlm(f,  [iRun N "SteinReg_5" thetaval t Gammahat], ',')
 
 
 			### Initial Paper submission:  The old code for robust
@@ -177,35 +178,35 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 			# xs, lam = KP.x_rob(o.cs, muhat, o.vs, 1.6448536269514717)
 			# t = toc()
 			# thetaval = dot(o.thetas, xs)/n
-			# writecsv(f, [iRun N "RO_Eps_.05" thetaval t 1.6448536269514717])
+			# writedlm(f,  [iRun N "RO_Eps_.05" thetaval t 1.6448536269514717], ',')
 
 			# #eps = .01				
 			# tic()
 			# xs, lam = KP.x_l2reg(o.cs, muhat, o.vs, 2.326347874040845)
 			# t = toc()
 			# thetaval = dot(o.thetas, xs)/n
-			# writecsv(f, [iRun N "RO_Eps_.01" thetaval t 2.326347874040845])
+			# writedlm(f,  [iRun N "RO_Eps_.01" thetaval t 2.326347874040845], ',')
 
 			tic()
 			thresh = sqrt(2*log(1/.1))
 			xs[:] = KP.x_robFW(o.cs, muhat, o.vs, thresh, TOL=1e-4)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.1" thetaval t thresh], ',')
 
 			tic()
 			thresh = sqrt(2*log(1/.05))
 			xs[:] = KP.x_robFW(o.cs, muhat, o.vs, thresh, TOL=1e-4)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "FWRO_Eps_.05" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.05" thetaval t thresh], ',')
 
 			tic()
 			thresh = sqrt(2*log(1/.01))
 			xs[:] = KP.x_robFW(o.cs, muhat, o.vs, thresh, TOL=1e-4)
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun n "FWRO_Eps_.01" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.01" thetaval t thresh], ',')
 
 			#Leave one out validation (LOO)
 			tic()
@@ -214,15 +215,15 @@ function test_CLTharness(f, numRuns, o, N_grid; Gamma_min = 1.0, Gamma_max=10, G
 
 			t = toc()
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "LOO" thetaval t Gamma_grid[indmax(objs)]])
+			writedlm(f,  [iRun N "LOO" thetaval t Gamma_grid[argmax(objs)]], ',')
 
 			#Use same values to extract for other gamma_min
 			ind_min = findfirst(Gamma_grid .>= 5.0)
-			GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			GammaLOO = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			#xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
 			KP.x_l2reg2!(o.cs, muhat, o.vs, GammaLOO, xs)
 			thetaval = dot(o.thetas, xs)/n
-			writecsv(f, [iRun N "LOO_5" thetaval t GammaLOO])
+			writedlm(f,  [iRun N "LOO_5" thetaval t GammaLOO], ',')
 
 	
 		end
@@ -273,7 +274,7 @@ function get_dist(dist_type)
 end
 
 function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
-	srand(seed)
+	Random.seed!(seed)
 	dist = get_dist(dist_type)
 	o = threePartCLTExp(n, N_grid[1], dist)
 	file_name = "$(file_out)_3partCLT_$(n)_$(seed).csv"
@@ -284,13 +285,13 @@ function test_3PartCLT(file_out, numRuns, n, N_grid, seed, dist_type)
 end
 
 function test_POAPCLT(file_out, param_path, numRuns, n, N_grid, seed, dist_type)
-	srand(seed)
-	dat, header = readcsv(param_path, header=true)
+	Random.seed!(seed)
+	dat, header = readdlm(param_path, ',', header=true)
 
 	@assert n <= size(dat, 1) "Param file too short for n"
-	cs = dat[1:n, 3]
-	thetas = dat[1:n, 1]
-	vs = dat[1:n, 2]
+	cs = vec(dat[1:n, 3])
+	thetas = vec(dat[1:n, 1])
+	vs = vec(dat[1:n, 2])
 
 	dist = get_dist(dist_type)
 	o = CLTExp(cs, thetas, vs, N_grid[1], dist)

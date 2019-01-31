@@ -1,5 +1,6 @@
 ##  a bare bones Test-Suite for some critical functions
-using Base.Test
+#using Base.Test
+using Test, Random, LinearAlgebra, DelimitedFiles
 include("unit_test_consts.jl")
 
 @testset "All Tests" begin 
@@ -13,15 +14,14 @@ end
 @testset "POAP Tests" begin 
 	#####Load up the POAP parameters
 	include("../testHarness_Paper.jl")
-
-	dat, header = readcsv("../Results/param_portExp_mtn2.csv", header=true)
-	srand(8675309)
-	const n = 2^10
+	dat, header = readdlm("../Results/param_portExp_mtn2.csv", ',', header=true)
+	Random.seed!(8675309)
+	n = 2^10
 
 	#Generate market
-	thetas = dat[1:n, 1]
-	vs = dat[1:n, 2]
-	cs = dat[1:n, 3]
+	thetas = vec(dat[1:n, 1])
+	vs = vec(dat[1:n, 2])
+	cs = vec(dat[1:n, 3])
 
 	o = DefaultExp(cs, thetas, vs)
 	muhat = zeros(Float64, n)
@@ -43,7 +43,6 @@ end
 	thetaval = dot(thetas, x_t)/n
 	@test isapprox(thetaval, 0.19235989290567318)
 
-
 	#EB MLE
 	tauMLE, x_t[:] = x_MLE(cs, muhat, vs)
 	thetaval = dot(thetas, x_t)/n
@@ -55,7 +54,6 @@ end
 	thetaval = dot(thetas, x_t)/n
 	@test isapprox(thetaval, 0.1632946586549207)
 	@test isapprox(tauMM, 0.4235477938547216)
-
 
 	#OR MSE
 	x_t[:], tau_CV = x_OR_MSE(cs, muhat, thetas, vs)
@@ -78,7 +76,7 @@ end
 	end
 
 	#Box version of Stein
-	const h = n^-.16666
+	h = n^-.16666
 	x_t[:], vals, objs = x_stein_box(cs, muhat, vs, h, tau_step = .05)
 	thetaval = dot(thetas, x_t)/n
 	@test isapprox(thetaval, 0.17053403283946592)
@@ -96,7 +94,7 @@ end
 	#Oracle Regs
 	x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat, vs, thetas, 
 			Gamma_min=.1, Gamma_max=5, Gamma_step=.1)
-	Gammahat = Gamma_grid[indmax(objs)]
+	Gammahat = Gamma_grid[argmax(objs)]
 	thetaval = dot(thetas, x_t)/n
 	@test isapprox(thetaval, 0.17365203085789088)
 	@test isapprox(Gammahat, 5.0)
@@ -108,7 +106,7 @@ end
 	#Stein Reg
 	x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat, vs, 
 											Gamma_min=.1, Gamma_max=.5, Gamma_step=.1)
-	Gammahat = Gamma_grid[indmax(objs)]
+	Gammahat = Gamma_grid[argmax(objs)]
 	thetaval = dot(thetas, x_t)/n
 	@test isapprox(thetaval, 0.16012121828686024)
 	@test isapprox(Gammahat, .4)
@@ -126,7 +124,7 @@ end
 	x_t[:], Gamma_grid, objs = KP.x_LOO_reg(cs, muhat + noise, muhat - noise, vs, 
 													Gamma_min=.1, Gamma_max=5, Gamma_step=.1)
 	thetaval = dot(thetas, x_t)/n
-	GammaLOO = Gamma_grid[indmax(objs)]
+	GammaLOO = Gamma_grid[argmax(objs)]
 
 	@test isapprox(thetaval, 0.16415748804852356)
 	@test isapprox(GammaLOO, 1.0)

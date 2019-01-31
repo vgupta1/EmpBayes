@@ -1,5 +1,5 @@
 module KP
-using Distributions, Roots, Optim, MLDataUtils
+using Distributions, Roots, Optim, LinearAlgebra, MLDataUtils, Statistics
 
 ##VG Consider killing these exports
 export x, best_x_tau, x_MM, x_MLE, 
@@ -11,7 +11,7 @@ export x, best_x_tau, x_MM, x_MLE,
 #cs_unsc (unscaled) should have entries on order unity.
 #The dual return fails with value -1 if the particular run is degenerate.  
 function x_dual(cs_unsc, rs)
-    const n = length(rs)
+    n = length(rs)
     ratios = rs ./ cs_unsc
     cs = cs_unsc/n #deliberately makes a copy
     indx = sortperm(ratios, rev=true)
@@ -30,7 +30,7 @@ function x_dual(cs_unsc, rs)
             weight += cs[indx[ix]]
         else
             #take fractional part
-            out[[indx[ix]]] = (1 - weight)/cs[indx[ix]]
+            out[[indx[ix]]] .= (1 - weight)/cs[indx[ix]]
             dual = ratios[indx[ix]]
             break
         end
@@ -90,8 +90,8 @@ end
 # For oracle, use muhat, thetas
 # For Hold_out, use muhat1, muhat2
 function best_x_tau(cs_unsc, muhat, vs, thetas)
-	const TOL = 1e-10
-	const n = length(muhat)
+	TOL = 1e-10
+	n = length(muhat)
 	ratios = muhat ./ cs_unsc
 	indx = sortperm(ratios, rev=true)
 	cs = cs_unsc/n  #makes a copy
@@ -115,7 +115,7 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
             total_weight += cs[indx[ix]]
         else
             #take fractional part
-            xs[[indx[ix]]] = (1.-total_weight)/cs[indx[ix]]
+            xs[indx[ix]] = (1 - total_weight)/cs[indx[ix]]
             frac_indx = indx[ix]
             total_weight = 1.
             break
@@ -169,7 +169,7 @@ function best_x_tau(cs_unsc, muhat, vs, thetas)
     			#frac_indx and s_vals stay the same
     			tau0 = svals[indx_p]
     		else #Case 2: Exiting Variable becomes fractional
-    			xs[indx_p] -= (1.- xs[frac_indx]) * cs[frac_indx]/cs[indx_p]
+    			xs[indx_p] -= (1. - xs[frac_indx]) * cs[frac_indx]/cs[indx_p]
     			@assert xs[indx_p] > 0 "Dengeracy?"
 
     			xs[frac_indx] = 1
@@ -221,8 +221,8 @@ end
 #In this case, returns -1 for tau and the xs corresponding to tau0 = 0
 function x_MLE(cs, muhat, vs, max_bnd = 1e2)
 	#solve the MLE using a rootfinder solver for the variance and then invert
-	vars = 1./ vs
-	deriv_loglik(v) = mean(muhat.^2 ./ (v + vars).^2 - 1./(v + vars))
+	vars = 1 ./ vs
+	deriv_loglik(v) = mean(muhat.^2 ./ (v .+ vars).^2 - 1 ./(v .+ vars))
 
     #Check the bracket
     if deriv_loglik(0) * deriv_loglik(max_bnd) > 0
@@ -241,27 +241,28 @@ end
 ##Selects tau0 to minimize oracle MSE
 #We can use the old shrinkage to compute tau.
 function x_OR_MSE(cs, muhat, thetas, vs; max_iter = 10)   
-    const n = length(cs)
+    n = length(cs)
     function deriv_f(tau0)
         #use old scaling
-        rs = muhat .* vs ./ (vs + tau0)
-        mean( (thetas - rs) .* rs ./ (vs + tau0))
+        rs = muhat .* vs ./ (vs .+ tau0)
+        mean( (thetas - rs) .* rs ./ (vs .+ tau0))
     end   
     #bracketting tau0
     #this code is a bit lazy.
     max_bnd = 1
     sgn = sign(deriv_f(0))
-    iter = 0
+    iter_ = 0
     for iter = 1:max_iter
         if sgn * deriv_f(max_bnd) < 0
             break
         else
             max_bnd *= 2
         end
+        iter_ = iter  #to get around scoping problem
     end
     #if iteration limit reached, just return zero
     tau_star = 0.
-    if iter != max_iter
+    if iter_ != max_iter
         tau_star = fzero(deriv_f, 0, max_bnd)
     end
     return x(cs, shrink(muhat, vs, tau_star)), tau_star
@@ -269,7 +270,8 @@ end
 
 #Selects tau0 to minimize SURE of MSE
 function x_sure_MSE(cs, muhat, vs)
-    f_deriv(tau) = dot(vs.*(muhat.^2 * tau - 1) - tau, 1./(vs + tau).^3)
+    f_deriv(tau) = dot(vs .* (muhat.^2 * tau .- 1) .- tau, 
+                            1. ./(vs .+ tau).^3)
 
     #bracket for ub
     lb, ub = 0., 1.
@@ -299,20 +301,20 @@ end
 function x_kFoldCV(cs, vs, dat, numFolds; 
                     tau_grid = linspace(0, 10, 100))
     #divy the folds 
-    const S = size(dat, 2)
-    const n = size(dat, 1)
+    S = size(dat, 2)
+    n = size(dat, 1)
     train, test = kfolds(S, numFolds)
     objs_all = zeros(length(tau_grid))
     vs_sc = zeros(length(vs))
 
     xs_t = zeros(n)
     for i = 1:numFolds
-        const num_train = length(train[i])
+        num_train = length(train[i])
         @. vs_sc = vs * num_train
 
         #form muhat  and leftover
-        muhat = vec(mean(dat[:, train[i]], 2))
-        zeta  = vec(mean(dat[:,  test[i]], 2))
+        muhat = vec(mean(dat[:, train[i]], dims=2))
+        zeta  = vec(mean(dat[:,  test[i]], dims=2))
 
         #eval on tau_grid pseudo-manually
         for j = 1:length(objs_all)
@@ -320,8 +322,8 @@ function x_kFoldCV(cs, vs, dat, numFolds;
             objs_all[j] += dot(zeta, xs_t) / n /numFolds
         end
     end
-    const tau_hat = tau_grid[indmax(objs_all)]
-    x(cs, shrink(vec(mean(dat, 2)), vs * S, tau_hat)), tau_grid, objs_all
+    tau_hat = tau_grid[argmax(objs_all)]
+    x(cs, shrink(vec(mean(dat, dims=2)), vs * S, tau_hat)), tau_grid, objs_all
 end
 
 
@@ -329,7 +331,7 @@ end
 ### Regularization based Methods
 #########
 function g_j(Gamma, lam, cj, muhat_j, vj, sqrt_vmin)
-    const t = muhat_j - lam * cj
+    t = muhat_j - lam * cj
     if t < 0
         return 0.
     elseif t < Gamma * sqrt_vmin / vj
@@ -344,8 +346,8 @@ end
 #Try to rationalize this and think about what is most memory efficient in code
 function x_l2reg2!(cs, muhat, vs, Gamma, x_out; 
                     lam_guess::Float64 = -1., ROOT_TOL::Float64=1e-6, TOL::Float64=1e-6)
-    const n = length(cs)
-    const sqrt_vmin = sqrt(minimum(vs))
+    n = length(cs)
+    sqrt_vmin = sqrt(minimum(vs))
     @assert length(x_out) == n "Return vector wrong size $(n) vs. $(length(x_out))"
 
     #Find lambda by making knapsack tight
@@ -356,7 +358,7 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
     #if you have lam_guess, assume gammas are close together
     #use this to guess a reasonable STARTING bracket
     if lam_guess  > 0
-        const lhs_prev = f(lam_guess)
+        lhs_prev = f(lam_guess)
         if lhs_prev > TOL
             lb = lam_guess
             ub = 2lb
@@ -374,9 +376,8 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
 
     #Now refine/correct the bracket so it is valid
     #A valid bracket satisfies f(lb) > 0, f(ub) < 0
-    tic()
     iter = 1
-    const MAX_ITER = 20
+    MAX_ITER = 20
     while f(ub)*f(lb) > 0. && iter < MAX_ITER
         f(lb) <= 0 && (lb /= 2.)
         f(ub) >= 0 && (ub *= 2.)
@@ -401,7 +402,12 @@ function x_l2reg2!(cs, muhat, vs, Gamma, x_out;
         lam_out = find_zero(lam -> f(lam), [lb, ub], FalsePosition(), ftol=ROOT_TOL)
     catch
         println("False Position Failed")
-        lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
+        try
+            lam_out = find_zero(lam -> f(lam), [lb, ub], Bisection(), ftol=ROOT_TOL)        
+        catch
+            println("Bisection also fails??")
+            error()
+        end
     end 
 
     x_out[:] = g_j.(Gamma, lam_out, cs, muhat, vs, sqrt_vmin)
@@ -414,7 +420,7 @@ end
 #output xhat, Gamma_grid, objs
 function x_l2reg_CV(cs, muhat, vs, thetas; 
                     Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
-    const n = length(muhat)
+    n = length(muhat)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
     #Exhaustive search
@@ -449,7 +455,7 @@ end
 function x_l2reg_kFoldCV(cs, vs, dat, numFolds; 
                     Gamma_step = .01, Gamma_min = .1, Gamma_max = 10)
     #divy the folds 
-    const S = size(dat, 2)
+    S = size(dat, 2)
     train, test = kfolds(S, numFolds)
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
     objs_all = zeros(length(Gamma_grid))
@@ -457,23 +463,24 @@ function x_l2reg_kFoldCV(cs, vs, dat, numFolds;
 
     for i = 1:numFolds
         #scale by size of fold, might not be equal for all flds
-        const num_train = length(train[i])
-        @. vs_sc = vs * num_train
+        num_train = length(train[i])
+        vs_sc[:] = vs .* num_train
 
         #form muhat  and leftover
-        muhat = mean(dat[:, train[i]], 2)
-        zeta  = mean(dat[:,  test[i]], 2)
+        muhat = mean(dat[:, train[i]], dims=2)
+        zeta  = mean(dat[:,  test[i]], dims=2)
 
         #eval on GammaGrid using above workhorse
         objs = x_l2reg_CV(cs, muhat, vs_sc, zeta; 
                     Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)[3]
-        @. objs_all = objs_all + objs / numFolds
+        objs_all[:] += objs ./ numFolds
     end
     #avg and choose Gammahat
     #Crucially gamma_grid same between runs and as above
-    Gammahat = Gamma_grid[indmax(objs_all)]
+    Gammahat = Gamma_grid[argmax(objs_all)]
     xs = zeros(size(dat, 1))
-    x_l2reg2!(cs, mean(dat, 2), vs * S, Gammahat, xs)
+    x_l2reg2!(cs, mean(dat, dims=2), vs * S, Gammahat, xs)
+
     xs, Gamma_grid, objs_all
 end
 
@@ -486,7 +493,7 @@ end
 #cs are unscaled
 function dirac_bias(vs, tau, muhat, lam, cs_unsc, thetas)
     out = 0.
-    const n = length(vs)
+    n = length(vs)
     vmin = minimum(vs)
     for jx = 1:n
         rj = (vmin + tau)/vmin * vs[jx]/(vs[jx] + tau) * thetas[jx]
@@ -501,7 +508,7 @@ end
 #only approximations are lam(t,z) -> lam(t) and ULLN
 #Serves as an upperbound on performance of a kernel bandwith
 function x_stein_exact(cs_unsc, muhat, vs, thetas; tau_step = .01, tau_max = 5.)
-    const n = length(vs)
+    n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
     objs = zeros(length(tau_grid))
     obj_best = -Inf
@@ -524,7 +531,7 @@ end
 #rs is the shrunken value 
 function approx_bias(vs, tau, rs, lam, cs, h)
     out = 0.
-    const n = length(vs)
+    n = length(vs)
     vmin = minimum(vs)
     hj = h
     for jx = 1:n
@@ -539,9 +546,9 @@ end
 #Stein formula using an kernel approximation for the dirac
 function x_stein_box(cs_unsc, muhat, vs, h; 
                      tau_step = .01, tau_max = 5.)
-    const n = length(vs)
+    n = length(vs)
     tau_grid = collect(0.:tau_step:tau_max)
-    objs = zeros(tau_grid)
+    objs = fill(0., size(tau_grid))
     obj_best = -Inf
     tau_best = -1.
     for ix = 1:length(tau_grid)
@@ -563,7 +570,7 @@ end
 #Lazy direct way.
 function primal_approx_bias(vs, tau, muhat, lam, cs, h)
     out = 0.
-    const n = length(vs)
+    n = length(vs)
     ej = zeros(n)
     for jx = 1:n
         if jx > 1
@@ -585,7 +592,7 @@ function x_stein_primal(cs_unsc, muhat, vs, h; tau_step = .01, tau_max = 5.)
     objs = zeros(length(tau_grid))
     obj_best = -Inf
     tau_best = -1.
-    const n =length(vs)
+    n =length(vs)
     for ix = 1:length(tau_grid)
         xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
@@ -604,8 +611,8 @@ end
 ##Regularization bias via stein's lemma
 function reg_bias(cs, vs, muhats, lam, Gamma)
     out = 0.
-    const n = length(vs)
-    const sqrt_vmin = sqrt(minimum(vs))
+    n = length(vs)
+    sqrt_vmin = sqrt(minimum(vs))
     for jx = 1:n
         if 0 <= muhats[jx] - lam * cs[jx] <= Gamma * sqrt_vmin/vs[jx]
             out += 1
@@ -619,8 +626,8 @@ function x_stein_reg(cs_unsc, muhat, vs; Gamma_step = .01, Gamma_min = .1, Gamma
     Gamma_grid = collect(Gamma_min:Gamma_step:Gamma_max)
 
     #preallocated for speed
-    const n =length(vs)
-    objs = zeros(Gamma_grid)
+    n =length(vs)
+    objs = fill(0., size(Gamma_grid))
     xs = zeros(n)
 
     #updated as we find better values
@@ -657,7 +664,7 @@ function x_LOO_reg(cs_unsc, muhat1, muhat2, vs;
 
     #Exploits fact that Gamma_grid is identical.
     objs = .5 .* (objs1 .+ objs2)
-    Gamma_best = Gamma_grid[indmax(objs)]
+    Gamma_best = Gamma_grid[argmax(objs)]
     Gamma_best >= Gamma_max-1e-10 && println("Gamma Grid too small ", Gamma_min, " ", Gamma_max)
 
     lam = x_l2reg2!(cs_unsc, .5 .* (muhat1 .+ muhat2), vs, Gamma_best, xs1)
@@ -668,7 +675,7 @@ end
 #assumes r is radius of ellipse, i.e. rob counterpart has r/n * norm(xs)_vs
 function x_robFW(cs, muhat, vs, r; MAX_ITER = 100, TOL=1e-6)
     iter = 1
-    const n = length(muhat)
+    n = length(muhat)
     sqrt_vs = sqrt.(vs)
     function grad!(xs, g)
         g[:] = muhat/n - r/norm(xs ./ sqrt_vs)/n * xs ./ vs 

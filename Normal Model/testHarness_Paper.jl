@@ -1,9 +1,10 @@
 ##Tests used in paper for the Small-Data KP
+using Distributions, Random, DelimitedFiles, LinearAlgebra
 include("KPNormal.jl")
-using Distributions, KP
+using .KP
 
 #Default experiments fix a single theta, cs, vs across all simulation
-type DefaultExp
+mutable struct DefaultExp
 	cs
 	thetas
 	vs
@@ -16,12 +17,12 @@ end
 #simulates random normal stuff, but via a dataset
 #dat is assumed n, S
 function sim!(o, muhat, dat)
-	const S = size(dat, 2)
-	const n = size(dat, 1)
+	S = size(dat, 2)
+	n = size(dat, 1)
 	for i = 1:S
-		dat[:, i] .= randn(n) ./ sqrt(o.vs/S)  .+ o.thetas #notice scaling by S
+		dat[:, i] .= randn(n) ./ sqrt.(o.vs/S)  .+ o.thetas #notice scaling by S
 	end
-	muhat[:] = mean(dat, 2)
+	muhat[:] = mean(dat, dims=2)
 end
 ######################
 ####
@@ -40,15 +41,15 @@ end
 #		#Time to compute
 #		#optimal value of tau0
 function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_step=.01)
-	const n_max = maximum(n_grid)
-	const S = 10
+	n_max = maximum(n_grid)
+	S = 10
 	muhat = zeros(Float64, n_max)
 	xs  = zeros(Float64, n_max)
 	dat = zeros(Float64, n_max, S)
 	lam_t = 0.
 
 	#write a header
-	writecsv(f, ["Run" "n" "Method" "thetaVal" "time" "tau0"])
+	writedlm(f,  ["Run" "n" "Method" "thetaVal" "time" "tau0"], ',')
 
 	for iRun = 1:numRuns
 		#generate the entire path up to n_max
@@ -67,18 +68,14 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			#Compute performance of each method
 
 			#SAA
-			tic()
-			x_t[:] = x(cs, muhat_t)
-			t = toc()
+			t = @elapsed x_t[:] = x(cs, muhat_t)
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "SAA" thetaval t 0.])
+			writedlm(f,  [iRun n "SAA" thetaval t 0.], ',')
 
 			#fullInfo val
-			tic()
-			x_t[:] = x(cs, thetas)
-			t = toc()
+			t = @elapsed x_t[:] = x(cs, thetas)
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "FullInfo" thetaval t 0.])
+			writedlm(f,  [iRun n "FullInfo" thetaval t 0.], ',')
 
 			# #The "Bayes" value.. only possible bc we if we we are in bayesian
 			# if :tau0 in fieldnames(o)
@@ -86,136 +83,135 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			# 	xs = x(cs, shrink(muhat_t, vs, o.tau0))
 			# 	t = toc()
 			# 	thetaval = dot(thetas, xs)/n
-			# 	writecsv(f, [iRun n "Bayes" thetaval t o.tau0])
+			# 	writedlm(f,  [iRun n "Bayes" thetaval t o.tau0], ',')
 			# end
 
 			#Tau MLE
-			tic()
-			tauMLE, x_t[:] = x_MLE(cs, muhat_t, vs)
-			t = toc()
+			t = 
+			  @elapsed tauMLE, x_t[:] = x_MLE(cs, muhat_t, vs)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "EB_MLE" thetaval t tauMLE])
+			writedlm(f,  [iRun n "EB_MLE" thetaval t tauMLE], ',')
 
 			#Tau MM
-			tic()
-			tauMM, x_t[:] = x_MM(cs, muhat_t, vs)
-			t = toc()
+			t = 
+			  @elapsed tauMM, x_t[:] = x_MM(cs, muhat_t, vs)
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "EB_MM" thetaval t tauMM])
+			writedlm(f,  [iRun n "EB_MM" thetaval t tauMM], ',')
 
 			#Oracle MSE
-			tic()
-			x_t[:], tau_CV = x_OR_MSE(cs, muhat_t, thetas, vs)
-			t = toc()
+			t = 
+			  @elapsed x_t[:], tau_CV = x_OR_MSE(cs, muhat_t, thetas, vs)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "OR_MSE" thetaval t tau_CV])
+			writedlm(f,  [iRun n "OR_MSE" thetaval t tau_CV], ',')
 
 			#Sure MSE
-			tic()
-			x_t[:], tau_CV = x_sure_MSE(cs, muhat_t, vs)
-			t = toc()
+			t = 
+			  @elapsed x_t[:], tau_CV = x_sure_MSE(cs, muhat_t, vs)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "SURE_MSE" thetaval t tau_CV])
+			writedlm(f,  [iRun n "SURE_MSE" thetaval t tau_CV], ',')
 
 			#Dirac Stein
-			tic()
-			x_t[:], vals, objs = x_stein_exact(cs, muhat_t, vs, thetas)
-			t = toc()
+			t = 
+			  @elapsed x_t[:], vals, objs = x_stein_exact(cs, muhat_t, vs, thetas)
+
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "DiracStein" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "DiracStein" thetaval t vals[argmax(objs)]], ',')
 
 			#Box with the optimized rate, i.e. h_n = n^-1/6 and scaling, altKernel
 			h = n^-.16666
-			tic()
-			x_t[:], vals, objs = x_stein_box(cs, muhat_t, vs, h, tau_step = .05)
-			t = toc()
+			t = 
+			  @elapsed x_t[:], vals, objs = x_stein_box(cs, muhat_t, vs, h, tau_step = .05)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "BoxStein" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "BoxStein" thetaval t vals[argmax(objs)]], ',')
 
 			#Oracle Value
-			tic()
-			x_t[:], vals, objs = best_x_tau(cs, muhat_t, vs, thetas)
-			t = toc()
+			t = 
+			  @elapsed x_t[:], vals, objs = best_x_tau(cs, muhat_t, vs, thetas)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "OR" thetaval t vals[indmax(objs)]])
+			writedlm(f,  [iRun n "OR" thetaval t vals[argmax(objs)]], ',')
 
 			#Hold-Out validation
-			tic()
-			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 2; tau_grid=collect(0.:.05:5))
-			t = toc()
+			t = 
+			  @elapsed x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 2; tau_grid=collect(0.:.05:5))
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "HO_EB" thetaval t tau_grid[indmax(objs)]])
+			writedlm(f,  [iRun n "HO_EB" thetaval t tau_grid[argmax(objs)]], ',')
 
 			#5-Fold validation
-			tic()
-			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 5; tau_grid=collect(0.:.05:5))
-			t = toc()
+			t = 
+			  @elapsed x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, 5; tau_grid=collect(0.:.05:5))
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "K5_EB" thetaval t tau_grid[indmax(objs)]])
+			writedlm(f,  [iRun n "K5_EB" thetaval t tau_grid[argmax(objs)]], ',')
 
 			#LOO validation
-			tic()
-			x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, S; tau_grid=collect(0.:.05:5))
-			t = toc()
+			t = 
+			  @elapsed x_t[:], tau_grid, objs = KP.x_kFoldCV(cs, vs/S, dat_t, S; tau_grid=collect(0.:.05:5))
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "LOO_EB" thetaval t tau_grid[indmax(objs)]])
+			writedlm(f,  [iRun n "LOO_EB" thetaval t tau_grid[argmax(objs)]], ',')
 
 
 			###Regularization Methods
 			#Oracle Regularization
-			tic()
-			x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
+			t = 
+			  @elapsed x_t[:], Gamma_grid, objs = KP.x_l2reg_CV(cs, muhat_t, vs, thetas, 
 														Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "OracleReg" thetaval t Gammahat])
+			writedlm(f,  [iRun n "OracleReg" thetaval t Gammahat], ',')
 
-			#From the same values, extract oracles for Other pairs
-			#For Gamma_min = 5
+			# #From the same values, extract oracles for Other pairs
+			# #For Gamma_min = 5
 			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "OracleReg_5" thetaval t Gammahat])
+			writedlm(f,  [iRun n "OracleReg_5" thetaval t Gammahat], ',')
 
-			#Our Stein Approach to Regularization
-			tic()
-			x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat_t, vs, 
+			# #Our Stein Approach to Regularization
+			t = 
+			  @elapsed x_t[:], Gamma_grid, objs = KP.x_stein_reg(cs, muhat_t, vs, 
 										Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "SteinReg" thetaval t Gammahat])
+			writedlm(f,  [iRun n "SteinReg" thetaval t Gammahat], ',')
 
-			#Again, from same values, extract values for gamma_min
+			# #Again, from same values, extract values for gamma_min
 			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			lam_t = KP.x_l2reg2!(cs, muhat_t, vs, Gammahat, x_t)
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "SteinReg_5" thetaval t Gammahat])
+			writedlm(f,  [iRun n "SteinReg_5" thetaval t Gammahat], ',')
 
-			#NEW RO method with new threshold 
-			tic()
+			# #NEW RO method with new threshold 		
 			thresh = sqrt(2*log(1/.1))
-			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-			t = toc()
+			t = 
+			  @elapsed x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "FWRO_Eps_.1" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.1" thetaval t thresh], ',')
 
-			tic()
 			thresh = sqrt(2*log(1/.05))
-			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-			t = toc()
+			t = 
+			  @elapsed x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "FWRO_Eps_.05" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.05" thetaval t thresh], ',')
 
-			tic()
 			thresh = sqrt(2*log(1/.01))
-			x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
-			t = toc()
+			t = 
+			  @elapsed x_t[:] = KP.x_robFW(cs, muhat_t, vs, thresh, TOL=1e-4)
+			
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "FWRO_Eps_.01" thetaval t thresh])
+			writedlm(f,  [iRun n "FWRO_Eps_.01" thetaval t thresh], ',')
 
 
 			# ####
@@ -227,14 +223,14 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			# xs, lam = KP.x_rob(cs, muhat_t, vs, 1.6448536269514717)
 			# t = toc()
 			# thetaval = dot(thetas, xs)/n
-			# writecsv(f, [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717])
+			# writedlm(f,  [iRun n "RO_Eps_.05" thetaval t 1.6448536269514717], ',')
 
 			# #eps = .01				
 			# tic()
 			# xs, lam = KP.x_rob(cs, muhat_t, vs, 2.326347874040845)
 			# t = toc()
 			# thetaval = dot(thetas, xs)/n
-			# writecsv(f, [iRun n "RO_Eps_.01" thetaval t 2.326347874040845])
+			# writedlm(f,  [iRun n "RO_Eps_.01" thetaval t 2.326347874040845], ',')
 
 			#VG Replaced with proper KFold
 			#Leave one out validation (LOO)
@@ -243,42 +239,44 @@ function test_harness(f, numRuns, o, n_grid; Gamma_min=1., Gamma_max=20., Gamma_
 			# 									Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
 			# t = toc()
 			# thetaval = dot(thetas, x_t)/n
-			# GammaLOO = Gamma_grid[indmax(objs)]
-			# writecsv(f, [iRun n "LOO" thetaval t GammaLOO])
+			# GammaLOO = Gamma_grid[argmax(objs)]
+			# writedlm(f,  [iRun n "LOO" thetaval t GammaLOO], ',')
 
 			# #Use same values to extract for other gamma_min
 			# ind_min = findfirst(Gamma_grid .>= 5.0)
-			# GammaLOO = Gamma_grid[ind_min:end][indmax(objs[ind_min:end])]
+			# GammaLOO = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
 			# lam_t = KP.x_l2reg2!(cs, muhat_t, vs, GammaLOO, x_t)
 			# thetaval = dot(thetas, x_t)/n
-			# writecsv(f, [iRun n "LOO_5" thetaval t GammaLOO])
+			# writedlm(f,  [iRun n "LOO_5" thetaval t GammaLOO], ',')
+			#######
+			#########	
+			#######
 
 			#Hold Out Validation choice
-			tic()
-			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 2; 
+			t = 
+			  @elapsed x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 2; 
                     Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
-			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "HO_Reg" thetaval t Gammahat])
+			writedlm(f,  [iRun n "HO_Reg" thetaval t Gammahat], ',')
 
-			#5-Fold Validation 
-			tic()
-			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 5; 
+			# #5-Fold Validation 
+			t = 
+			  @elapsed x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, 5; 
                     Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
-			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "K5_Reg" thetaval t Gammahat])
+			writedlm(f,  [iRun n "K5_Reg" thetaval t Gammahat], ',')
 
 			#LOO Validation 
-			tic()
-			x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, S; 
-                    Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
-			t = toc()
-			Gammahat = Gamma_grid[indmax(objs)]
+			t = 
+			  @elapsed x_t[:], Gamma_grid, objs = KP.x_l2reg_kFoldCV(cs, vs/S, dat_t, S; 
+	                Gamma_step=Gamma_step, Gamma_min=Gamma_min, Gamma_max=Gamma_max)
+			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(thetas, x_t)/n
-			writecsv(f, [iRun n "LOO_Reg" thetaval t Gammahat])
+			writedlm(f,  [iRun n "LOO_Reg" thetaval t Gammahat], ',')
 		end
 		flush(f)
 	end
@@ -291,10 +289,10 @@ end
 function test_Gaussian(file_out, numRuns, n_grid, seed, tau0, mu0, avg_tau, 
 						frac_fit = .1)
 	#build the sim object
-	const n_max = maximum(n_grid)
-	srand(seed)
-	cs = rand(n_max) * 2. / frac_fit   
-	vs = 2. * avg_tau * rand(n_max)
+	n_max = maximum(n_grid)
+	Random.seed!(seed)
+	cs = rand(n_max) .* 2 ./ frac_fit   
+	vs = 2. * avg_tau .* rand(n_max)
 	thetas = randn(n_max) / sqrt(tau0) + mu0
 	o = DefaultExp(cs, thetas, vs)
 	
@@ -311,9 +309,9 @@ end
 function test_OddEven(file_out, numRuns, n_grid, seed, even_v; 
 						even_theta=1., frac_fit=.1)
 	#build the sim object
-	srand(seed)
-	const n_max = maximum(n_grid)
-	cs = 1./frac_fit * ones(n_max)
+	Random.seed!(seed)
+	n_max = maximum(n_grid)
+	cs = 1/frac_fit .* ones(n_max)
 	thetas = zeros(n_max)
 	thetas[2:2:n_max] = even_theta
 	vs = ones(n_max)
@@ -333,8 +331,8 @@ end
 function test_threePart(file_out, numRuns, n_grid, seed, 
 						theta_l, v_l, c_l, theta_m, v_m, c_m, theta_h, v_h, c_h, 
 						Gamma_min, Gamma_max)
-	srand(seed)
-	const n_max = maximum(n_grid)
+	Random.seed!(seed)
+	n_max = maximum(n_grid)
 	cs = ones(n_max)
 	thetas = ones(n_max)
 	vs = ones(n_max)
@@ -363,9 +361,9 @@ end
 ###  Reads in a theta/cs/vs specification
 function test_ReadData(file_out, numRuns, n_grid, seed, param_path; 
 						Gamma_min = 1., Gamma_max = 20, Gamma_step=.01)
-	srand(seed)
-	const n_max = maximum(n_grid)
-	dat, header = readcsv(param_path, header=true)
+	Random.seed!(seed)
+	n_max = maximum(n_grid)
+	dat, header = readdlm(param_path, ',', header=true)
 
 	#confirm that n_max works
 	@assert n_max <= size(dat, 1) "Param file too short for n_max"
@@ -383,7 +381,7 @@ end
 
 #uses the three-part set-up to create density plots
 function create_density_plot(file_name; n=2^17, seed=8675309)
-	srand(seed)
+	Random.seed!(seed)
 	f = open(file_name, "w")
 
 	cs = ones(n)
@@ -404,10 +402,10 @@ function create_density_plot(file_name; n=2^17, seed=8675309)
 end
 
 function tauDependence3PartPlot(file_name, n, seed)
-	srand(seed)
+	Random.seed!(seed)
 	f = open("$(file_name)_$(n)_$(seed).csv", "w")
 	#present the true value and relative to full-info
-	writecsv(f, ["n" "tauVal" "thetaVal" "RelFullInfo"])
+	writedlm(f,  ["n" "tauVal" "thetaVal" "RelFullInfo"], ',')
 
 	#sim some data
 	theta_l, v_l, c_l = 0.0, 0.1, 20.001
@@ -440,7 +438,7 @@ function tauDependence3PartPlot(file_name, n, seed)
 		rs = shrink(muhat, vs, tau)
 		xs, lam = KP.x_dual(cs, rs)
 		thetaVal = dot(xs, thetas)/n
-		writecsv(f, [n tau thetaVal thetaVal/zstar ])
+		writedlm(f,  [n tau thetaVal thetaVal/zstar ], ',')
 	end
 	close(f)
 end

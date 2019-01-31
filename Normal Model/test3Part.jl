@@ -38,17 +38,17 @@ time_stamp = toc()
 
 
 ##read everyone in, throw away a line
-data, header = readcsv(file_a, header=true)
+data, header = readdlm(file_a, ',', header=true)
 
-data_t = readcsv(file_b, skipstart=1)
+data_t = readdlm(file_b, ',', skipstart=1)
 data_t[:, 1] += numRuns
 data = vcat(data, data_t)
 
-data_t = readcsv(file_c, skipstart=1)
+data_t = readdlm(file_c, ',', skipstart=1)
 data_t[:, 1] += 2numRuns
 data = vcat(data, data_t)
 
-data_t = readcsv(file_d, skipstart=1)
+data_t = readdlm(file_d, ',', skipstart=1)
 data_t[:, 1] += 3numRuns
 data = vcat(data, data_t)
 
@@ -59,8 +59,8 @@ println("spath \t", spath)
 indx = search(file_a, spath)[end] + 1
 
 f = open("$(spath)_$(file_a[indx:end])_full_$(4numRuns).csv", "w")
-writecsv(f, header)
-writecsv(f, data)
+writedlm(f,  header, ',')
+writedlm(f,  data, ',')
 close(f)
 
 println("Num Paths: \t $(numRuns) \t Time:", time_stamp )
