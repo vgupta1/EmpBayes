@@ -30,7 +30,8 @@ function x_dual(cs_unsc, rs)
             weight += cs[indx[ix]]
         else
             #take fractional part
-            out[[indx[ix]]] .= (1 - weight)/cs[indx[ix]]
+            # VG DEBUG out[[indx[ix]]] .= (1 - weight)/cs[indx[ix]]
+            out[indx[ix]] = (1 - weight)/cs[indx[ix]]
             dual = ratios[indx[ix]]
             break
         end
@@ -41,7 +42,8 @@ end
 ### Some generic helpers 
 function shrink(muhat, vs, tau) 
     vmin = minimum(vs)
-    return @. (vmin + tau)/vmin * (vs / (vs + tau)) * muhat
+#    return @. (vmin + tau)/vmin * (vs / (vs + tau)) * muhat
+    return (vmin + tau)/vmin * (vs ./ (vs .+ tau)) .* muhat
 end
 
 x(cs_unsc, rs) = x_dual(cs_unsc, rs)[1]
@@ -63,8 +65,8 @@ end
 function sbars(muhat, cs, vs, f_indx)
     out = zeros(Float64, length(muhat))
     for i = 1:length(out)
-        out[i] = vs[i]*vs[f_indx] * (cs[i]*muhat[f_indx] - cs[f_indx]*muhat[i])
-        out[i] /= cs[f_indx]*vs[i]*muhat[i] - cs[i]*vs[f_indx]*muhat[f_indx]
+        out[i] = vs[i] * vs[f_indx] * (cs[i] * muhat[f_indx] - cs[f_indx] * muhat[i])
+        out[i] /= cs[f_indx] * vs[i] * muhat[i] - cs[i] * vs[f_indx] * muhat[f_indx]
     end   
     out
 end
@@ -555,7 +557,9 @@ function x_stein_box(cs_unsc, muhat, vs, h;
         xs, lam = x_dual(cs_unsc, shrink(muhat, vs, tau_grid[ix]))
         #compute the value corresponding to evaluating the dirac
         #approximates lambda by the finite dual value...
-        objs[ix] = dot(muhat, xs)/n - approx_bias(vs, tau_grid[ix], muhat, lam, cs_unsc, h)
+        objs[ix] = dot(muhat, xs)/n - 
+                approx_bias(vs, tau_grid[ix], shrink(muhat, vs, tau_grid[ix]), 
+                                lam, cs_unsc, h)
 
         if objs[ix] > obj_best
             tau_best = tau_grid[ix]
@@ -576,12 +580,12 @@ function primal_approx_bias(vs, tau, muhat, lam, cs, h)
         if jx > 1
             ej[jx-1] = 0.
         end
-        ej[jx] = .5h
+        ej[jx] = h / sqrt(vs[jx])
 
-        xs_p = x(cs, shrink(muhat + ej, vs, tau))[jx]
-        xs_m = x(cs, shrink(muhat - ej, vs, tau))[jx]
+        xs_p = x(cs, shrink(muhat .+ ej, vs, tau))[jx]
+        xs_m = x(cs, shrink(muhat .- ej, vs, tau))[jx]
 
-        out += (xs_p - xs_m)/h/vs[jx]
+        out += (xs_p - xs_m) / 2 / h / sqrt(vs[jx])
     end
     out/n
 end
