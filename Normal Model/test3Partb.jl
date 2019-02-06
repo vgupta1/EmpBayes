@@ -9,7 +9,6 @@ const spath = "./Results/3Partb"
 const param_path = "./Results/param_3Part.csv"
 
 n_grid = [2^i for i = 5:17]
-n_grid = [2^i for i = 5:8]
 numRuns = parse(Int, ARGS[1])
 
 #Won't be using the regularization results
