@@ -300,19 +300,19 @@ end
 #dat is assumed column major size(dat) = (n, S) (S for samples)
 #vs is the precision of \xi, i.e, one column of dat
 #muhat has precision vs * S
-function x_kFoldCV(cs, vs, dat, numFolds; 
+function x_kFoldCV(cs, vs_xi, dat, numFolds; 
                     tau_grid = linspace(0, 10, 100))
     #divy the folds 
     S = size(dat, 2)
     n = size(dat, 1)
     train, test = kfolds(S, numFolds)
     objs_all = zeros(length(tau_grid))
-    vs_sc = zeros(length(vs))
+    vs_sc = zeros(length(vs_xi))
 
     xs_t = zeros(n)
     for i = 1:numFolds
         num_train = length(train[i])
-        @. vs_sc = vs * num_train
+        @. vs_sc = vs_xi * num_train
 
         #form muhat  and leftover
         muhat = vec(mean(dat[:, train[i]], dims=2))
@@ -325,7 +325,7 @@ function x_kFoldCV(cs, vs, dat, numFolds;
         end
     end
     tau_hat = tau_grid[argmax(objs_all)]
-    x(cs, shrink(vec(mean(dat, dims=2)), vs * S, tau_hat)), tau_grid, objs_all
+    x(cs, shrink(vec(mean(dat, dims=2)), vs_xi * S, tau_hat)), tau_grid, objs_all
 end
 
 
