@@ -309,7 +309,7 @@ function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type,
 
 	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
-	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step)
+	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step, true)  #true forces constant precision
 	close(f)
 	return file_name
 end
