@@ -5,20 +5,18 @@
 
 spath = "./Results/POAPCLT_plot_"
 param_path = "./Results/param_portExp_mtn2.csv"
-N_grid = collect(1:15)
-n = 2^15
+S_grid = collect(1:2:15)
+n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
 
-#VG need to update here to pass through all the way to bottom.
-# Gamma_min = parse(Float64, ARGS[3])
-# Gamma_max = parse(Float64, ARGS[4])
+#"true" flag indicates use constantPrecision, i.e., the robustness to Normality experiments
 
-tic()
-a = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 8675309, dist_type)
-b = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 5164174290, dist_type)
-c = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 5167462266, dist_type)
-d = @spawn test_POAPCLT(spath, param_path, numRuns, n, N_grid, 123456, dist_type)
+start_time = time_ns()
+a = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 8675309, dist_type, 1.0, 100., 1., true)
+b = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5164174290, dist_type, 1.0, 100., 1., true)
+c = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5167462266, dist_type, 1.0, 100., 1., true)
+d = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 123456, dist_type, 1.0, 100., 1., true)
 
 ######
 file_a = fetch(a)
@@ -26,7 +24,7 @@ file_b = fetch(b)
 file_c = fetch(c)
 file_d = fetch(d)
 
-time_stamp = toc()
+time_stamp = (time_ns() - start_time) * 1e-9
 
 ##read everyone in, throw away a line
 data, header = readdlm(file_a, ',', header=true)
