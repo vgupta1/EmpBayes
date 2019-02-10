@@ -2,12 +2,16 @@
 
 source("plottingUtils.R")
 
-dat = read_csv("../Results/3Part_plot___3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
+#VG Data updated after fixing bug in SteinEB Feb 2019
+#dat = read_csv("../Results/3Part_plot___3part_0.0_0.1_20.001_1.0_1.0_20.001_0.3_4.0_20.001_8675309000.csv_full_200.csv")
+dat = read_csv("../Results/3Partb__8675309.csv_full_200.csv")
+
 dat <- clean_data(dat)
 dat.sum <- summarize_dat(dat)
 
 #A small version for the paper
-g <- filter(dat.sum, isBayes, Method != "EB_MM") %>%
+g <- filter(dat.sum, isBayes, 
+            !Method %in% c("EB_MM", "K5_EB", "LOO_EB", "HO_EB") )%>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -21,11 +25,12 @@ g <- make_pretty(g) +
   guides(shape=guide_legend(nrow=3, byrow=TRUE))
 g
 
-ggsave("../../../../OR Submission_1/Figures/3Part20.pdf", 
+ggsave("../../../../MS Revision/Figures/3Part20b.pdf", 
        g, width=3, height=3, units="in")
 
 #A Bigger version for the appendix
-g <- filter(dat.sum, isBayes) %>%
+g <- filter(dat.sum, isBayes, 
+            !Method %in% c("LOO_EB", "K5_EB", "HO_EB")) %>%
   ggplot(aes(n, avg, group=Label, color=Label)) + 
   geom_point(aes(shape=Label), position=pd) + 
   geom_line(aes(linetype=Label), position=pd) + 
@@ -37,13 +42,14 @@ g <- make_pretty(g) +
   ylab("(%) of Full-Info")
 g
 
-ggsave("../../../../OR Submission_1/Figures/3Part20Big.pdf",
+ggsave("../../../../MS Revision/Figures/3Part20Bigb.pdf",
        g, width=6, height=3.25, units="in")
 
 
 #############
 ## densities of the fitted taus
-g1 <- filter(dat, isBayes, n == 131072) %>%
+g1 <- filter(dat, isBayes, n == 131072, 
+             !Method %in% c("LOO_EB", "K5_EB", "HO_EB", "SAA")) %>%
   ggplot(aes(tau0)) + 
   geom_density(aes(group=Label, fill=Label), 
                alpha=.5, linetype="blank")
@@ -70,7 +76,7 @@ g1 <- g1 + geom_text(data=dat.labels,
 g1 <- g1 + xlab(expression(tau))
 
 
-ggsave("../../../../OR Submission_1/Figures/3PartTaus.pdf", 
+ggsave("../../../../MS Revision/Figures/3PartTausb.pdf", 
        g1, width=2.275, height=2.275, units="in")
 
 
