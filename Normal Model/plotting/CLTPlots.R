@@ -4,12 +4,12 @@ library(stringr)
 
 dist_type = "exponential"
 dist_type = "t"
- dist_type = "pareto"
+dist_type = "pareto"
 dist_type = "uniform"
 dist_type = "bernoulli"
  
 dat_path = str_c("../Results/POAPCLT_plot___", 
-              dist_type, "_8675309.csv_full_100.csv")
+              dist_type, "_8675309.csv_full_200.csv")
 dat = read_csv(dat_path)
 
 dat <- clean_data(dat)
@@ -23,7 +23,7 @@ g <- filter(dat.sum, isBayes) %>%
   geom_line(aes(linetype=Label), position=pd) + 
   geom_errorbar(aes(ymin=down, ymax=up), position=pd)
 
-g <- make_pretty(g) + 
+g <- make_pretty(g, TRUE) + 
   scale_x_continuous() + 
   scale_y_continuous(labels=scales::percent) +
   theme(legend.justification = "center", 
@@ -69,7 +69,7 @@ g <- filter(dat.sum, isReg) %>%
   geom_line(aes(linetype=Label), position=pd) + 
   geom_errorbar(aes(ymin=down, ymax=up), position=pd)
 
-g <- make_pretty(g) + 
+g <- make_pretty(g, FALSE) + 
   theme(legend.justification = "center", 
         legend.position= c(.5, .1), 
         legend.direction="horizontal") + 
