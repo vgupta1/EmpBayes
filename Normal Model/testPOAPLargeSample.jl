@@ -7,7 +7,6 @@ spath = "./Results/POAPLargeSample_"
 param_path = "./Results/param_portExp_mtn2.csv"
 S_grid = collect(1:5:50)
 n = 2^17
-n = 100
 
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
