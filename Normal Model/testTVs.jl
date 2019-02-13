@@ -68,7 +68,7 @@ function test_computeTVs(numSamples, s_path_out, n, S_grid, distribution; seed =
 	file_name = "$(s_path_out)_$(distribution)_$(seed).csv"
 	file_out = open(file_name, "w")
 	writedlm(file_out, ["S" "TV"], ',')
-	writedlm(file_out, [vec(S_grid) out])
+	writedlm(file_out, [vec(S_grid) out], ',')
 	close(file_out)
 
 	return file_name
