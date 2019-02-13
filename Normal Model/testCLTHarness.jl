@@ -14,6 +14,7 @@ mutable struct CLTExp
 	dist
 end
 
+
 #Simulates by drawing S obs according to dist, and scaling by sqrt S
 # useConstantPrecision ensure that muhats have same precision for all S
 # else it scales like sqrt(S)
@@ -186,7 +187,7 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 
 
 			### Initial Paper submission:  The old code for robust
-			### Sow uses a better threshold and algorithm
+			### Now uses a better threshold and algorithm
 			#RO heuristic for Gamma
 			#eps = .05				
 			# tic()
@@ -305,7 +306,7 @@ function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type,
 	vs = vec(dat[1:n, 2])
 
 	dist = get_dist(dist_type)
-	o = CLTExp(cs, thetas, vs, S_grid[1], dist)
+	o = CLTExp(cs, thetas, vs, zeros(n, S_grid[1]), dist)
 
 	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
@@ -313,6 +314,27 @@ function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type,
 	close(f)
 	return file_name
 end
+
+
+function test_POAPLargeSample(file_out, param_path, numRuns, n, S_grid, seed, dist_type, Gammamin, Gammamax, Gamma_step)
+	Random.seed!(seed)
+	dat, header = readdlm(param_path, ',', header=true)
+
+	@assert n <= size(dat, 1) "Param file too short for n"
+	cs = vec(dat[1:n, 3])
+	thetas = vec(dat[1:n, 1])
+	vs = vec(dat[1:n, 2])
+
+	dist = get_dist(dist_type)
+	o = CLTExp(cs, thetas, vs, zeros(n, S_grid[1]), dist)
+
+	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
+	f = open(file_name, "w")
+	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step, false)  #false forces constant precision
+	close(f)
+	return file_name
+end
+
 
 
 
