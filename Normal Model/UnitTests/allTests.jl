@@ -144,7 +144,7 @@ end
 
 @testset "CLT Harness" begin
 	include("../testCLTHarness.jl")
-	test_POAPCLT("../Results/temp_POAPCLT", "../Results/param_portExp_mtn2.csv", 2, 100, [2 3], 8675309, "exponential")
+	test_POAPCLT("../Results/temp_POAPCLT", "../Results/param_portExp_mtn2.csv", 2, 100, [2 3], 8675309, "exponential", 1.0, 10., 1.)
 	@test true #to keep clean summary output
 end
 
