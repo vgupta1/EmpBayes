@@ -38,7 +38,7 @@ dat.maxGammas <- dat %>%
             Value = oracle_vals[index]) %>%
   filter(Method != "Full-Info")
 
-dat %>% filter(Method == "Reg OR") %>%
+g <- dat %>% filter(Method == "Reg OR") %>%
   ggplot(aes(Gamma, Perf)) + 
   geom_line() + 
   geom_point(aes(Gamma, Value, color=Method, shape=Method), 

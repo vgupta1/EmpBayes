@@ -56,6 +56,34 @@ g <- g + scale_y_continuous() +
 ggsave("../../../../MS Revision/Figures/portPerfBayes_Absb.pdf",
        g, width=3.25, height=3.25, units="in")
 
+################
+#Std error version for Reviewer
+g <- dat.sum %>% filter(isBayes, 
+                        !Method %in%c("EB_MM", "HO_EB", "LOO_EB") ) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=avg - std/sqrt(200), ymax=avg+ std/sqrt(200)), position=pd)
+
+g <- make_pretty(g, TRUE) + 
+  theme(legend.direction = "horizontal",
+        legend.position=c(.5, .1),
+        legend.justification = "center") +
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  ylab("(%) of Full-Info") + 
+  scale_y_continuous(labels=scales::percent, 
+                     limits = c(.70, .97),
+                     breaks=seq(.75, .95, .1)) + 
+  scale_x_log10(labels=scales::comma)
+  
+  ggsave("../../../../MS Revision/Figures/portPerfBayes_stdErr.pdf",
+         g, width=3.25, height=3.25, units="in")
+
+
+
+
+
+
 ##############
 
 #####
@@ -149,6 +177,31 @@ g
 
 ggsave("../../../../MS Revision/Figures/portPerfRegBig.pdf", 
        g, width=6.5, height=3.25, units="in")
+
+
+### sill version with std. err
+g <- filter(dat.sum, isReg, 
+            !Method %in% c("FWRO_Eps_.05","HO_Reg", "LOO_Reg")) %>%
+  ggplot(aes(n, avg, group=Label, color=Label)) + 
+  geom_point(aes(shape=Label), position=pd) + 
+  geom_line(aes(linetype=Label), position=pd) + 
+  geom_errorbar(aes(ymin=avg - std/sqrt(200), ymax=avg + std/sqrt(200)), position=pd)
+
+g <- make_pretty(g, FALSE) + 
+  theme(legend.direction = "horizontal", 
+        legend.position=c(.5, .1), 
+        legend.justification =  "center") +
+  guides(shape=guide_legend(nrow=2, byrow=TRUE)) + 
+  ylab("(%) of Full-Info") +
+  scale_y_continuous(labels=scales::percent, limits =c(.7, .97),
+                     breaks=seq(.75, .95, .1))
+g
+
+ggsave("../../../../MS Revision/Figures/portPerfReg_stderr.pdf",
+       g, width=3.25, height=3.25, units="in")
+
+
+
 
 ######
 # Similar plots for variance?
