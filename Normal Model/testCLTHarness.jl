@@ -9,22 +9,31 @@ using .KP
 mutable struct CLTExp
 	cs
 	thetas
-	vs
-	data  #contains the raw runs
+	vs   #always represents precisions of muhat
 	dist
+
+	data  #contains the raw runs, always size (n, S)
+	vs_orig  #original precisions pre-scaling by S
+	useConstantPrecision #ensures muhat has same precision for all S
 end
 
+function CLTExp(cs, thetas, vs_, dist, S, useConstantPrecision) 
+	vs = copy(vs_)
+	if !useConstantPrecision
+		vs[:] .*= S
+	end
+	CLTExp(cs, thetas, vs, dist, zeros(length(cs), S), 
+		copy(vs), useConstantPrecision)
+end
 
 #Simulates by drawing S obs according to dist, and scaling by sqrt S
-# useConstantPrecision ensure that muhats have same precision for all S
-# else it scales like sqrt(S)
-# For efficiency, assumes data has been sized correctly!!
-function sim!(o::CLTExp, muhat, useConstantPrecision)
+#Assumes object pre-configured!
+function sim!(o::CLTExp, muhat)
 	S = size(o.data, 2)
 	n = size(o.data, 1)
 	shifts = mean(o.dist)
-	scales = 1/ std(o.dist) ./ sqrt.(o.vs)
-	if useConstantPrecision
+	scales = 1/ std(o.dist) ./ sqrt.(o.vs_orig)
+	if o.useConstantPrecision
 		scales[:] .*= sqrt(S)
 	end 
 
@@ -33,6 +42,15 @@ function sim!(o::CLTExp, muhat, useConstantPrecision)
 		o.data[:, i] .= (rand(o.dist, n) .- mean(o.dist)) .* scales .+ o.thetas
 	end
 	muhat[:] = vec(mean(o.data, dims=2))
+end
+
+#sets object up to be used for size S
+function resize!(o::CLTExp, S)
+	o.data = zeros(length(o.cs), S)
+	o.vs = copy(o.vs_orig)
+	if !o.useConstantPrecision
+		o.vs[:] .*= S
+	end
 end
 
 ######################
@@ -51,9 +69,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-##### useConstantPrecision = true gives the CLT test.  false yields large sample test. 
-
-function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step, useConstantPrecision)
+function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step)
 	n = length(o.cs)
 	muhat = zeros(Float64, n)
 	xs = zeros(Float64, n)
@@ -65,8 +81,9 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 	for iRun = 1:numRuns
 		for S in S_grid
 			#reset the object and simulate
-			o.data = zeros(n, S)
-			sim!(o, muhat, useConstantPrecision)  #CLT experiment uses constant precision
+			resize!(o, S)
+			#o.data = zeros(n, S)
+			sim!(o, muhat)
 
 			#SAA
 			t = 
@@ -111,7 +128,7 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "BoxStein" thetaval t vals[argmax(objs)]], ',')
 
-			#Oracle Value
+			#Oracle
 			t = 
 			  @elapsed xs[:], vals, objs = best_x_tau(o.cs, muhat, o.vs, o.thetas)
 			thetaval = dot(o.thetas, xs)/n
@@ -148,7 +165,7 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			####
 			# Regularization 
 			####
-			#Oracle Regularization
+			#Oracle
 			t = 
 			  @elapsed xs[:], Gamma_grid, objs = KP.x_l2reg_CV(o.cs, muhat, o.vs, o.thetas, 
 															Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
@@ -158,16 +175,6 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "OracleReg" thetaval t Gammahat], ',')
 
-			## Reuse same values to look at different Gamma_min
-			#For Gamma_min =5
-			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
-			#xs = KP.x_l2reg(o.cs, muhat, o.vs, Gammahat)[1]
-			t = 
-			  @elapsed KP.x_l2reg2!(o.cs, muhat, o.vs, Gammahat, xs)
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "OracleReg_5" thetaval t Gammahat], ',')
-
 			#Our Stein Approach to Regularization
 			t = 
 			  @elapsed xs[:], Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, 
@@ -176,32 +183,6 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			Gammahat = Gamma_grid[argmax(objs)]
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "SteinReg" thetaval t Gammahat], ',')
-
-			#Reuse values for shortened gamma
-			ind_min = findfirst(Gamma_grid .>= 5.0)
-			Gammahat = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
-			t = 
-			  @elapsed KP.x_l2reg2!(o.cs, muhat, o.vs, Gammahat, xs)
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "SteinReg_5" thetaval t Gammahat], ',')
-
-
-			### Initial Paper submission:  The old code for robust
-			### Now uses a better threshold and algorithm
-			#RO heuristic for Gamma
-			#eps = .05				
-			# tic()
-			# xs, lam = KP.x_rob(o.cs, muhat, o.vs, 1.6448536269514717)
-			# t = toc()
-			# thetaval = dot(o.thetas, xs)/n
-			# writedlm(f,  [iRun S "RO_Eps_.05" thetaval t 1.6448536269514717], ',')
-
-			# #eps = .01				
-			# tic()
-			# xs, lam = KP.x_l2reg(o.cs, muhat, o.vs, 2.326347874040845)
-			# t = toc()
-			# thetaval = dot(o.thetas, xs)/n
-			# writedlm(f,  [iRun S "RO_Eps_.01" thetaval t 2.326347874040845], ',')
 
 			thresh = sqrt(2*log(1/.1))
 			t = 
@@ -220,7 +201,6 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			  @elapsed xs[:] = KP.x_robFW(o.cs, muhat, o.vs, thresh, TOL=1e-4)
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "FWRO_Eps_.01" thetaval t thresh], ',')
-
 
 			#####
 			## Add K Fold values IF S is adequately large
@@ -256,23 +236,6 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 				thetaval = dot(o.thetas, xs)/n
 				writedlm(f,  [iRun S "LOO_Reg" thetaval t Gammahat], ',')
 			end
-
-			# #Leave one out validation (LOO)
-			# tic()
-			# xs[:], Gamma_grid, objs = KP.x_LOO_reg(o.cs, muhat + noise, muhat - noise, o.vs, 
-			# 									Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-
-			# t = toc()
-			# thetaval = dot(o.thetas, xs)/n
-			# writedlm(f,  [iRun S "LOO" thetaval t Gamma_grid[argmax(objs)]], ',')
-
-			# #Use same values to extract for other gamma_min
-			# ind_min = findfirst(Gamma_grid .>= 5.0)
-			# GammaLOO = Gamma_grid[ind_min:end][argmax(objs[ind_min:end])]
-			# #xs = KP.x_l2reg(o.cs, muhat, o.vs, GammaLOO)[1]
-			# KP.x_l2reg2!(o.cs, muhat, o.vs, GammaLOO, xs)
-			# thetaval = dot(o.thetas, xs)/n
-			# writedlm(f,  [iRun S "LOO_5" thetaval t GammaLOO], ',')
 		end
 		flush(f)
 	end
@@ -306,11 +269,11 @@ function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type,
 	vs = vec(dat[1:n, 2])
 
 	dist = get_dist(dist_type)
-	o = CLTExp(cs, thetas, vs, zeros(n, S_grid[1]), dist)
+	o = CLTExp(cs, thetas, vs, dist, S_grid[1], true) #true forces constant precision
 
 	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
-	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step, true)  #true forces constant precision
+	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step)  
 	close(f)
 	return file_name
 end
@@ -326,11 +289,11 @@ function test_POAPLargeSample(file_out, param_path, numRuns, n, S_grid, seed, di
 	vs = vec(dat[1:n, 2])
 
 	dist = get_dist(dist_type)
-	o = CLTExp(cs, thetas, vs, zeros(n, S_grid[1]), dist)
+	o = CLTExp(cs, thetas, vs, dist, S_grid[1], false) #false forces constant precision
 
 	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
-	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step, false)  #false forces constant precision
+	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step)  
 	close(f)
 	return file_name
 end

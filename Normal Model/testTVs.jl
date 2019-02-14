@@ -21,7 +21,7 @@ function test_computeTVs(numSamples, o)
 	dat = zeros(n, numSamples)
 	muhat = zeros(n)
 	for i = 1:numSamples
-		sim!(o, muhat, true)  #constant precision version	
+		sim!(o, muhat)  #constant precision version	
 		dat[:, i] .= muhat
 	end
 
@@ -61,7 +61,7 @@ function test_computeTVs(numSamples, s_path_out, n, S_grid, distribution; seed =
 	dist = get_dist(distribution)
 	out = zeros(length(S_grid))
 	for (i, S) in enumerate(S_grid)
-		o = CLTExp(cs, thetas, vs, zeros(n, S), dist)
+		o = CLTExp(cs, thetas, vs, dist, S, true)
 		out[i] = test_computeTVs(numSamples, o)
 	end
 
