@@ -4,9 +4,8 @@
 #pass arguments for things via ARGS[1] is numRun per batch
 
 spath = "./Results/POAPCLT_plot_"
-spath = "./Results/POAPCLT_temp"
 param_path = "./Results/param_portExp_mtn2.csv"
-S_grid = collect(1:25)
+S_grid = collect(1:2:26)
 n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
