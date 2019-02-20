@@ -55,6 +55,11 @@ g <- make_pretty(g, FALSE) +
   ylab("(%) of Full-Info") + xlab("S")
 g
 
+ggsave(str_c("../../../../MS Revision/Figures/LSReg_", dist_type, "_plot.pdf"), g, width=3.25, height=3.25, units="in")
+
+
+
+
 #### 
 #something seems funny with regopt
 #try plotting the gammas...

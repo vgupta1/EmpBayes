@@ -4,8 +4,9 @@
 #pass arguments for things via ARGS[1] is numRun per batch
 
 spath = "./Results/POAPCLT_plot_"
+spath = "./Results/POAPCLT_temp"
 param_path = "./Results/param_portExp_mtn2.csv"
-S_grid = collect(1:2:15)
+S_grid = collect(1:25)
 n = 2^17
 numRuns = parse(Int, ARGS[1])
 dist_type = ARGS[2]
@@ -13,10 +14,10 @@ dist_type = ARGS[2]
 #"true" flag indicates use constantPrecision, i.e., the robustness to Normality experiments
 
 start_time = time_ns()
-a = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 8675309, dist_type, 1.0, 100., 1.)
-b = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5164174290, dist_type, 1.0, 100., 1.)
-c = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5167462266, dist_type, 1.0, 100., 1.)
-d = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 123456, dist_type, 1.0, 100., 1.)
+a = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 8675309, dist_type, 1.0, 100., 1., onlyOracle=true)
+b = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5164174290, dist_type, 1.0, 100., 1., onlyOracle=true)
+c = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 5167462266, dist_type, 1.0, 100., 1., onlyOracle=true)
+d = @spawn test_POAPCLT(spath, param_path, numRuns, n, S_grid, 123456, dist_type, 1.0, 100., 1., onlyOracle=true)
 
 ######
 file_a = fetch(a)

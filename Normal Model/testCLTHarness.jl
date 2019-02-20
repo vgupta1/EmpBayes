@@ -69,7 +69,7 @@ end
 #		#Value wrt theta
 #		#Time to compute
 #		#optimal value of tau0
-function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step)
+function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step; onlyOracle = false)
 	n = length(o.cs)
 	muhat = zeros(Float64, n)
 	xs = zeros(Float64, n)
@@ -85,17 +85,56 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			#o.data = zeros(n, S)
 			sim!(o, muhat)
 
-			#SAA
-			t = 
-			  @elapsed xs[:] = KP.x(o.cs, muhat)
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "SAA" thetaval t 0.], ',')
-
 			#fullInfo val
 			t = 
 			  @elapsed xs[:] = x(o.cs, o.thetas)
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "FullInfo" thetaval t 0.], ',')
+
+			#Oracle
+			t = 
+			  @elapsed xs[:], vals, objs = best_x_tau(o.cs, muhat, o.vs, o.thetas)
+			thetaval = dot(o.thetas, xs)/n
+			writedlm(f,  [iRun S "OR" thetaval t vals[argmax(objs)]], ',')
+
+			#Box with the optimized rate, i.e. h_n = n^-1/6
+			h = n^-.16666
+			t = 
+			  @elapsed xs[:], vals, objs = x_stein_box(o.cs, muhat, o.vs, h, tau_step = .05)
+			thetaval = dot(o.thetas, xs)/n
+			writedlm(f,  [iRun S "BoxStein" thetaval t vals[argmax(objs)]], ',')
+
+			#Oracle
+			t = 
+			  @elapsed xs[:], Gamma_grid, objs = KP.x_l2reg_CV(o.cs, muhat, o.vs, o.thetas, 
+															Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+
+
+			Gammahat = Gamma_grid[argmax(objs)]
+			thetaval = dot(o.thetas, xs)/n
+			writedlm(f,  [iRun S "OracleReg" thetaval t Gammahat], ',')
+
+
+			#Our Stein Approach to Regularization
+			t = 
+			  @elapsed xs[:], Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, 
+											Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
+
+			Gammahat = Gamma_grid[argmax(objs)]
+			thetaval = dot(o.thetas, xs)/n
+			writedlm(f,  [iRun S "SteinReg" thetaval t Gammahat], ',')
+
+
+			if onlyOracle
+				continue
+			end
+
+
+			#SAA
+			t = 
+			  @elapsed xs[:] = KP.x(o.cs, muhat)
+			thetaval = dot(o.thetas, xs)/n
+			writedlm(f,  [iRun S "SAA" thetaval t 0.], ',')
 
 			#Tau MLE
 			t = 
@@ -121,18 +160,7 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			thetaval = dot(o.thetas, xs)/n
 			writedlm(f,  [iRun S "SURE_MSE" thetaval t tau_CV], ',')
 
-			#Box with the optimized rate, i.e. h_n = n^-1/6
-			h = n^-.16666
-			t = 
-			  @elapsed xs[:], vals, objs = x_stein_box(o.cs, muhat, o.vs, h, tau_step = .05)
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "BoxStein" thetaval t vals[argmax(objs)]], ',')
 
-			#Oracle
-			t = 
-			  @elapsed xs[:], vals, objs = best_x_tau(o.cs, muhat, o.vs, o.thetas)
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "OR" thetaval t vals[argmax(objs)]], ',')
 
 			#Hold-Out validation
 			if S >= 2
@@ -165,25 +193,7 @@ function test_CLTharness(f, numRuns, o, S_grid, Gamma_min, Gamma_max, Gamma_step
 			####
 			# Regularization 
 			####
-			#Oracle
-			t = 
-			  @elapsed xs[:], Gamma_grid, objs = KP.x_l2reg_CV(o.cs, muhat, o.vs, o.thetas, 
-															Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-
-
-			Gammahat = Gamma_grid[argmax(objs)]
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "OracleReg" thetaval t Gammahat], ',')
-
-			#Our Stein Approach to Regularization
-			t = 
-			  @elapsed xs[:], Gamma_grid, objs = KP.x_stein_reg(o.cs, muhat, o.vs, 
-											Gamma_min=Gamma_min, Gamma_max=Gamma_max, Gamma_step=Gamma_step)
-
-			Gammahat = Gamma_grid[argmax(objs)]
-			thetaval = dot(o.thetas, xs)/n
-			writedlm(f,  [iRun S "SteinReg" thetaval t Gammahat], ',')
-
+			#Robust values
 			thresh = sqrt(2*log(1/.1))
 			t = 
 			  @elapsed xs[:] = KP.x_robFW(o.cs, muhat, o.vs, thresh, TOL=1e-4)
@@ -259,7 +269,7 @@ function get_dist(dist_type)
 	return dist
 end
 
-function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type, Gammamin, Gammamax, Gamma_step)
+function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type, Gammamin, Gammamax, Gamma_step; onlyOracle=false)
 	Random.seed!(seed)
 	dat, header = readdlm(param_path, ',', header=true)
 
@@ -273,7 +283,7 @@ function test_POAPCLT(file_out, param_path, numRuns, n, S_grid, seed, dist_type,
 
 	file_name = "$(file_out)_$(dist_type)_$(seed).csv"
 	f = open(file_name, "w")
-	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step)  
+	test_CLTharness(f, numRuns, o, S_grid, Gammamin, Gammamax, Gamma_step, onlyOracle=onlyOracle)  
 	close(f)
 	return file_name
 end
