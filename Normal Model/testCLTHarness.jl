@@ -257,6 +257,16 @@ function get_dist(dist_type)
 		dist = Uniform()
 	elseif dist_type == "bernoulli"
 		dist = Bernoulli(.5)
+	elseif dist_type == "beta"
+		dist = Beta(2, 2)
+	elseif dist_type == "beta5"
+		dist = Beta(2, 5)
+	elseif dist_type == "beta2"
+		dist = Beta(5, 2)
+	elseif dist_type == "arcsine"
+		dist = Arcsine()
+	elseif dist_type == "triangle"
+		dist = TriangularDist(-1, 1)
 	elseif dist_type == "exponential"
 		dist = Exponential()
 	elseif dist_type == "t"
