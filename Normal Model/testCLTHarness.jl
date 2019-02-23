@@ -255,23 +255,23 @@ end
 function get_dist(dist_type)
 	if dist_type == "uniform"
 		dist = Uniform()
-	elseif dist_type == "bernoulli"
+	elseif dist_type == "bernoulli"  #discrete, no tV
 		dist = Bernoulli(.5)
 	elseif dist_type == "beta"
 		dist = Beta(2, 2)
-	elseif dist_type == "beta5"
+	elseif dist_type == "beta5"  #skewed
 		dist = Beta(2, 5)
-	elseif dist_type == "beta2"
+	elseif dist_type == "beta2"  #skewed
 		dist = Beta(5, 2)
 	elseif dist_type == "arcsine"
 		dist = Arcsine()
 	elseif dist_type == "triangle"
 		dist = TriangularDist(-1, 1)
-	elseif dist_type == "exponential"
+	elseif dist_type == "exponential" #not subgaussian
 		dist = Exponential()
-	elseif dist_type == "t"
+	elseif dist_type == "t"  #no higher moments
 		dist = TDist(3)
-	elseif dist_type == "pareto"
+	elseif dist_type == "pareto" #no higher moments
 		dist = Pareto(3)
 	else
 		throw("Distribution Type Not Recognized: $(dist_type)")
