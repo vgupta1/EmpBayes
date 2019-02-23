@@ -52,7 +52,7 @@ println("spath \t", spath)
 
 indx =  findfirst(spath, file_a)[end] + 1
 
-f = open("$(spath)_$(file_a[indx:end])_full_$(round(alpha, digits=2))_$(4numRuns).csv", "w")
+f = open("$(spath)_$(file_a[indx:end])_full_$(round(alpha, digits=6))_$(4numRuns).csv", "w")
 writedlm(f,  header, ',')
 writedlm(f,  data, ',')
 close(f)
