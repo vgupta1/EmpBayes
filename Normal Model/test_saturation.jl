@@ -12,9 +12,6 @@ n_grid = [2^i for i = 5:17]
 numRuns = parse(Int, ARGS[1])
 alpha = parse(Float64, ARGS[2])
 
-
-n_grid = [2^i for i = 13:14]
-
 start_time = time_ns()
 a = @spawn test_saturation(spath, numRuns, n_grid, 8675309, param_path, alpha=alpha)
 b = @spawn test_saturation(spath, numRuns, n_grid, 5164290, param_path, alpha=alpha)
